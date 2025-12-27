@@ -84,7 +84,7 @@ const FeatureCard = ({ feature, index }) => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-50px" }}
             transition={{ duration: 0.5, delay: index * 0.1 }}
-            className={`group relative w-full h-[320px] md:h-[400px] overflow-hidden rounded-[2rem] cursor-pointer border border-white/40 shadow-xl ${feature.shadow} transition-all duration-500 hover:shadow-2xl hover:-translate-y-2`}
+            className={`group relative w-full h-[260px] md:h-[320px] overflow-hidden rounded-[2rem] cursor-pointer border border-white/40 shadow-xl ${feature.shadow} transition-all duration-500 hover:shadow-2xl hover:-translate-y-2`}
         >
             {/* Background Image with Zoom Effect */}
             <div className="absolute inset-0">

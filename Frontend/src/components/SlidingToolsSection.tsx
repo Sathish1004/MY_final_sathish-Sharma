@@ -239,31 +239,31 @@ const SlidingToolsSection = () => {
                         <FaReact className="w-20 h-20 text-indigo-400" />
                     </motion.div>
                 ))}
-
-                {/* Network Lines */}
-                <svg className="absolute inset-0 w-full h-full opacity-10">
-                    {[...Array(8)].map((_, i) => (
-                        <motion.path
-                            key={i}
-                            d={`M ${i * 12.5},0 Q ${50 + i * 5},${50 + i * 10} ${100 - i * 12.5},100`}
-                            fill="none"
-                            stroke="#4F46E5"
-                            strokeWidth="0.5"
-                            strokeDasharray="5,5"
-                            animate={{
-                                strokeDashoffset: [0, 50],
-                            }}
-                            transition={{
-                                duration: 3 + i,
-                                repeat: Infinity,
-                                ease: "linear"
-                            }}
-                        />
-                    ))}
-                </svg>
-
-                {/* Floating Educational Keywords Removed */}
             </div>
+
+            {/* Network Lines */}
+            <svg className="absolute inset-0 w-full h-full opacity-10">
+                {[...Array(8)].map((_, i) => (
+                    <motion.path
+                        key={i}
+                        d={`M ${i * 12.5},0 Q ${50 + i * 5},${50 + i * 10} ${100 - i * 12.5},100`}
+                        fill="none"
+                        stroke="#4F46E5"
+                        strokeWidth="0.5"
+                        strokeDasharray="5,5"
+                        animate={{
+                            strokeDashoffset: [0, 50],
+                        }}
+                        transition={{
+                            duration: 3 + i,
+                            repeat: Infinity,
+                            ease: "linear"
+                        }}
+                    />
+                ))}
+            </svg>
+
+            {/* Floating Educational Keywords Removed */}
 
             <style >{`
         @keyframes floatWord {

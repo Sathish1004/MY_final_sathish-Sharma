@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import {
     BookOpen, Code2, Terminal, FolderGit2,
     Users, Briefcase, Target, Calendar,
@@ -62,18 +63,67 @@ export default function WorkspaceStack() {
     }, [isPaused]);
 
     return (
-        <section className="py-16 md:py-20 bg-white">
-            <div className="container mx-auto px-4 md:px-6">
+        <section className="py-16 md:py-20 bg-white relative">
+            <div className="container mx-auto px-4 md:px-6 relative">
 
-                {/* Section Badge / Title (Outside Container) */}
-                <div className="text-center mb-8 md:mb-10 opacity-0 animate-fade-in-down" style={{ animationFillMode: 'forwards' }}>
-                    <span className="inline-block py-1 px-3 rounded-full bg-emerald-50 border border-emerald-100 mb-4 shadow-sm">
-                        <span className="text-emerald-600 uppercase tracking-[0.2em] text-sm md:text-base font-bold flex items-center gap-2">
-                            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                            All-in-One Platform
-                        </span>
-                    </span>
-                </div>
+                {/* Small Blue Floating Box (Height Reduced 30%) */}
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true, margin: "-50px" }}
+                    transition={{ duration: 0.6, ease: "easeOut" }}
+                    className="absolute right-4 top-4 md:right-6 md:top-6 z-40 w-[90%] max-w-[360px] md:max-w-none md:w-[38%] lg:w-[30%] bg-gradient-to-br from-[#0b1221] via-[#1e1b4b] to-[#312e81] rounded-3xl shadow-lg shadow-blue-900/10 p-5 md:p-6 text-white overflow-hidden border border-white/5"
+                >
+                    {/* Cosmic Background Effects */}
+                    <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-blue-500/10 rounded-full blur-[80px] pointer-events-none" />
+                    <div className="absolute bottom-0 left-0 w-[200px] h-[200px] bg-indigo-500/10 rounded-full blur-[60px] pointer-events-none" />
+                    <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 mix-blend-overlay"></div>
+
+                    <div className="relative z-10 flex flex-col gap-3 text-left">
+                        {/* Top: Headline */}
+                        <div>
+                            <h3 className="text-base md:text-lg font-bold leading-snug mb-1 tracking-tight">
+                                One platform for all your <br />
+                                student challenges
+                            </h3>
+                            <p className="text-blue-200 text-[10px] md:text-xs leading-relaxed max-w-xs">
+                                Unified learning & career acceleration.
+                            </p>
+                        </div>
+
+                        {/* Middle: Feature Tags (Student Workspace Scope) */}
+                        <div className="flex gap-2 justify-start flex-wrap">
+                            <div className="px-2.5 py-1 bg-white/10 border border-white/20 rounded-md text-[10px] md:text-xs font-medium text-blue-100 flex items-center gap-1.5 backdrop-blur-sm">
+                                <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
+                                Learn
+                            </div>
+                            <div className="px-2.5 py-1 bg-white/10 border border-white/20 rounded-md text-[10px] md:text-xs font-medium text-purple-100 flex items-center gap-1.5 backdrop-blur-sm">
+                                <div className="w-1.5 h-1.5 rounded-full bg-purple-400"></div>
+                                Build
+                            </div>
+                            <div className="px-2.5 py-1 bg-white/10 border border-white/20 rounded-md text-[10px] md:text-xs font-medium text-emerald-100 flex items-center gap-1.5 backdrop-blur-sm">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
+                                Elevate
+                            </div>
+                        </div>
+
+                        {/* Bottom: Stats Row */}
+                        <div className="border-t border-white/10 pt-3 flex justify-between gap-2 text-left">
+                            <div>
+                                <div className="text-base md:text-lg font-bold text-blue-100">100%</div>
+                                <div className="text-[10px] text-blue-300">Placement</div>
+                            </div>
+                            <div className="border-l border-white/10 pl-2">
+                                <div className="text-base md:text-lg font-bold text-blue-100">3X</div>
+                                <div className="text-[10px] text-blue-300">Faster</div>
+                            </div>
+                            <div className="border-l border-white/10 pl-2">
+                                <div className="text-base md:text-lg font-bold text-blue-100">50+</div>
+                                <div className="text-[10px] text-blue-300">Partners</div>
+                            </div>
+                        </div>
+                    </div>
+                </motion.div>
 
                 {/* Compact Dark Container */}
                 <div
@@ -86,15 +136,20 @@ export default function WorkspaceStack() {
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-emerald-900/20 via-transparent to-transparent"></div>
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,_var(--tw-gradient-stops))] from-cyan-900/20 via-transparent to-transparent"></div>
 
+                    {/* Large Blue Floating Banner (The "Turbo360" Style Card) */}
+
                     {/* Content Wrapper */}
                     <div className="relative z-10 py-12 md:py-16">
 
-                        {/* Header (Inside Box) */}
-                        <div className="text-center mb-10 md:mb-12 px-4">
-                            <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 tracking-tight">
-                                Everything You Need in <br className="hidden md:block" />
+                        {/* Header (Inside Box - Left Aligned) */}
+                        <div className="text-left mb-10 md:mb-12 px-6 md:px-16 max-w-2xl">
+                            <h2 className="text-3xl md:text-5xl font-bold text-white mb-4 tracking-tight leading-tight">
+                                Everything You Need in <br />
                                 One <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400">Workspace</span>
                             </h2>
+                            <p className="text-slate-400 text-sm md:text-base mt-4 max-w-lg">
+                                A complete ecosystem of tools designed to help you learn, build, and grow your career.
+                            </p>
                         </div>
 
                         {/* Animated Rows */}

@@ -46,6 +46,7 @@ import {
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { cn } from '@/lib/utils';
+import OnboardingOverlay from "../OnboardingOverlay";
 
 const navItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
@@ -100,6 +101,7 @@ function AppSidebar() {
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild>
                       <NavLink
+                        id={`nav-item-${item.title.toLowerCase().replace(/[&]/g, '').replace(/\s+/g, '-')}`}
                         to={item.url}
                         className={cn(
                           "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
@@ -165,7 +167,7 @@ function AppSidebar() {
   );
 }
 
-import OnboardingOverlay from "../OnboardingOverlay";
+
 
 export default function DashboardLayout() {
   const { user, loading, showOnboarding } = useAuth();
@@ -194,9 +196,9 @@ export default function DashboardLayout() {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background relative">
-        {showOnboarding && <OnboardingOverlay />}
         <AppSidebar />
-        <main className="flex-1 flex flex-col min-h-screen">
+        <main className="flex-1 flex flex-col min-h-screen relative">
+          {showOnboarding && <OnboardingOverlay />}
           {/* Top header */}
           <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-40 flex items-center px-4 gap-4">
             <SidebarTrigger />

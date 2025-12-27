@@ -1,5 +1,6 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     Briefcase,
     GraduationCap,
@@ -12,6 +13,18 @@ import {
 } from 'lucide-react';
 
 const FeatureWheel = () => {
+    const navigate = useNavigate();
+    const [showAltText, setShowAltText] = useState(false);
+
+    // Continuous Text Swap Interval
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setShowAltText(prev => !prev);
+        }, 3000); // Swap every 3 seconds
+
+        return () => clearInterval(interval);
+    }, []);
+
     // Configuration for the icons distributed in a circle
     const features = [
         { icon: Briefcase, label: "Internships", color: "text-emerald-500", bg: "bg-emerald-50", iconBg: "bg-emerald-500", angle: -45 }, // Top Right ish
@@ -35,17 +48,71 @@ const FeatureWheel = () => {
                 style={{ backgroundImage: 'radial-gradient(circle, #cbd5e1 1px, transparent 1px)', backgroundSize: '30px 30px' }}>
             </div>
 
-            {/* Central Hub with Prolync Text (Single Blue Gradient Circle) */}
+            {/* Central Hub with Premium Booking CTA */}
             <motion.div
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
-                className="absolute z-20 flex items-center justify-center cursor-default"
+                className="absolute z-20 flex items-center justify-center perspective-[1000px]"
             >
-                {/* Single Front Circle - Light Blue Gradient */}
-                <div className="w-36 h-36 rounded-full bg-gradient-to-br from-cyan-300 to-blue-500 border-[6px] border-white shadow-2xl flex items-center justify-center">
-                    <span className="font-extrabold text-white text-2xl tracking-tight">Prolync</span>
-                </div>
+                <motion.button
+                    onClick={() => navigate('/pricing')}
+                    animate={{
+                        rotateX: [0, 10, 0, -5, 0], // Gentle top-tilt loop
+                        y: [0, -4, 0, -2, 0] // Subtle float
+                    }}
+                    transition={{
+                        duration: 6,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                    }}
+                    whileHover={{ scale: 1.05, rotateX: 0, y: 0 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="relative group cursor-pointer"
+                >
+                    {/* Glow Effect (Pulsing) */}
+                    <div className={`absolute inset-0 rounded-full blur-xl transition-all duration-1000 group-hover:bg-opacity-70
+                        ${showAltText ? 'bg-emerald-500/40' : 'bg-blue-500/40'}
+                    `} />
+
+                    {/* Button Shape */}
+                    <div className={`relative px-8 py-4 rounded-full shadow-lg border border-white/20 overflow-hidden min-w-[200px] flex items-center justify-center transition-all duration-1000
+                        ${showAltText
+                            ? 'bg-gradient-to-r from-emerald-500 to-teal-400 shadow-emerald-500/30'
+                            : 'bg-gradient-to-r from-blue-600 to-cyan-500 shadow-blue-500/30'}
+                    `}>
+
+                        {/* Shimmer/Sheen Effect */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 translate-x-[-200%] animate-shimmer" />
+
+                        {/* Animated Text Content */}
+                        <AnimatePresence mode='wait'>
+                            {!showAltText ? (
+                                <motion.span
+                                    key="premium"
+                                    initial={{ opacity: 0, y: 15 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -15 }}
+                                    transition={{ duration: 0.4 }}
+                                    className="font-bold text-white text-lg tracking-wide whitespace-nowrap"
+                                >
+                                    Premium Booking
+                                </motion.span>
+                            ) : (
+                                <motion.span
+                                    key="booksoon"
+                                    initial={{ opacity: 0, y: 15 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -15 }}
+                                    transition={{ duration: 0.4 }}
+                                    className="font-bold text-white text-lg tracking-wide whitespace-nowrap"
+                                >
+                                    Book Soon
+                                </motion.span>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                </motion.button>
             </motion.div>
 
             {/* Orbiting Features */}

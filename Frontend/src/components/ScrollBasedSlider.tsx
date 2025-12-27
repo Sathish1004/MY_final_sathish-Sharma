@@ -1,9 +1,11 @@
-import { useRef, useEffect, useState } from 'react';
-import { BookOpen, Users, Layout, CheckCircle2, Code, Briefcase, GraduationCap, Trophy } from 'lucide-react';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { BookOpen, Users, Layout, CheckCircle2, Code, Briefcase, Trophy, ArrowRight, ChevronRight } from 'lucide-react';
 
 const slides = [
     {
-        id: 1,
+        id: 'courses',
+        shortTitle: "Courses",
         icon: BookOpen,
         title: "100+ Industry-Ready Courses",
         highlight: "Learn once. Apply everywhere.",
@@ -13,11 +15,14 @@ const slides = [
             "Certifications aligned with job requirements",
             "Beginner to advanced learning paths"
         ],
+        image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=2670&auto=format&fit=crop",
         color: "text-blue-600",
-        bg: "bg-blue-50"
+        bg: "bg-blue-50",
+        overlay: "Master New Skills"
     },
     {
-        id: 2,
+        id: 'coding',
+        shortTitle: "Coding",
         icon: Code,
         title: "Interactive Coding Platform",
         highlight: "Practice coding without leaving your browser.",
@@ -27,11 +32,14 @@ const slides = [
             "Daily coding challenges and contests",
             "Project-based learning approach"
         ],
+        image: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?q=80&w=2669&auto=format&fit=crop",
         color: "text-purple-600",
-        bg: "bg-purple-50"
+        bg: "bg-purple-50",
+        overlay: "Build & Deploy"
     },
     {
-        id: 3,
+        id: 'mentorship',
+        shortTitle: "Mentorship",
         icon: Users,
         title: "50+ Expert Mentors",
         highlight: "Learn directly from people who work in the industry.",
@@ -41,11 +49,14 @@ const slides = [
             "Career planning, resume review, and mock interviews",
             "Personalized learning support"
         ],
+        image: "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?q=80&w=2684&auto=format&fit=crop",
         color: "text-emerald-600",
-        bg: "bg-emerald-50"
+        bg: "bg-emerald-50",
+        overlay: "Get Expert Guidance"
     },
     {
-        id: 4,
+        id: 'jobs',
+        shortTitle: "Jobs",
         icon: Briefcase,
         title: "Jobs & Internships",
         highlight: "Connecting talent with top opportunities.",
@@ -55,11 +66,14 @@ const slides = [
             "Direct application to partner companies",
             "Resume building and portfolio showcasing"
         ],
+        image: "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?q=80&w=2672&auto=format&fit=crop",
         color: "text-orange-600",
-        bg: "bg-orange-50"
+        bg: "bg-orange-50",
+        overlay: "Land Your Dream Job"
     },
     {
-        id: 5,
+        id: 'placement',
+        shortTitle: "Placement",
         icon: Trophy,
         title: "Placement Support",
         highlight: "Your bridge from campus to corporate.",
@@ -69,11 +83,14 @@ const slides = [
             "Soft skills and communication training",
             "Guaranteed interview opportunities for top performers"
         ],
+        image: "https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=2670&auto=format&fit=crop",
         color: "text-amber-600",
-        bg: "bg-amber-50"
+        bg: "bg-amber-50",
+        overlay: "Achieve Success"
     },
     {
-        id: 6,
+        id: 'workspace',
+        shortTitle: "Workspace",
         icon: Layout,
         title: "One Unified Student Workspace",
         highlight: "Everything you need — in one workspace.",
@@ -83,116 +100,134 @@ const slides = [
             "Seamless transition from learning → practice → placement",
             "Built for students, freshers, and career switchers"
         ],
+        image: "https://images.unsplash.com/photo-1497215728101-856f4ea42174?q=80&w=2670&auto=format&fit=crop",
         color: "text-indigo-600",
-        bg: "bg-indigo-50"
+        bg: "bg-indigo-50",
+        overlay: "All-in-One Platform"
     }
 ];
 
 export default function ScrollBasedSlider() {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const [activeSlide, setActiveSlide] = useState(0);
-    const [progress, setProgress] = useState(0);
-
-    useEffect(() => {
-        const handleScroll = () => {
-            if (!containerRef.current) return;
-
-            const { top, height } = containerRef.current.getBoundingClientRect();
-            const windowHeight = window.innerHeight;
-
-            // Calculate how far we've scrolled into the container
-            // We want the interaction to start when the container hits the top (or near it)
-            const scrollDistance = -top;
-            const totalScrollableHeight = height - windowHeight;
-
-            if (totalScrollableHeight <= 0) return;
-
-            // Normalize scroll progress between 0 and 1
-            let normalizedProgress = scrollDistance / totalScrollableHeight;
-            normalizedProgress = Math.max(0, Math.min(1, normalizedProgress));
-
-            setProgress(normalizedProgress * 100);
-
-            // Determine active slide based on chunks of progress
-            const slideIndex = Math.floor(normalizedProgress * slides.length);
-            // Clamp index to valid range (0 to slides.length - 1)
-            setActiveSlide(Math.min(slides.length - 1, Math.max(0, slideIndex)));
-        };
-
-        window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
+    const [activeTab, setActiveTab] = useState(0);
 
     return (
-        <div ref={containerRef} className="relative h-[600vh] bg-white">
-            <div className="sticky top-0 h-screen flex flex-col justify-center overflow-hidden">
 
-                {/* Section Header */}
-                <div className="absolute top-8 left-0 right-0 z-20 text-center px-4">
-                    <h2 className="text-3xl md:text-5xl font-bold text-slate-900 mb-4 tracking-tight">Why Choose Student Workspace?</h2>
-                    <p className="text-lg text-slate-600 max-w-2xl mx-auto">A single platform designed to support learning, coding, mentorship, and careers.</p>
+        <section id="why-choose-workspace" className="py-16 md:py-24 bg-[#022c22] overflow-hidden relative">
+            {/* Background Gradients */}
+            <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+                <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[100px]" />
+                <div className="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[100px]" />
+            </div>
+
+            <div className="container mx-auto px-4 max-w-7xl relative z-10">
+
+                {/* Header */}
+                <div className="text-center mb-12">
+                    <h2 className="text-3xl md:text-5xl font-serif text-white mb-8 tracking-tight">
+                        Why Choose Student Workspace?
+                    </h2>
+
+                    {/* Navigation Tabs (Underline Style) */}
+                    <div className="flex flex-wrap justify-center gap-8 border-b border-white/10">
+                        {slides.map((slide, index) => (
+                            <button
+                                key={slide.id}
+                                onClick={() => setActiveTab(index)}
+                                className={`pb-4 text-base md:text-lg font-medium transition-all duration-300 relative
+                                ${activeTab === index
+                                        ? 'text-white shadow-[0_4px_20px_-2px_rgba(16,185,129,0.5)]' // Added subtle glow to text
+                                        : 'text-slate-500 hover:text-slate-300'
+                                    }
+                            `}
+                            >
+                                {slide.shortTitle}
+                                {activeTab === index && (
+                                    <motion.div
+                                        layoutId="activeTab"
+                                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500"
+                                        initial={false}
+                                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                    />
+                                )}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
-                {/* Slides Container */}
-                <div className="relative w-full max-w-5xl mx-auto px-6 h-[600px] flex items-center justify-center">
-                    {slides.map((slide, index) => (
-                        <div
-                            key={slide.id}
-                            className={`absolute inset-0 transition-all duration-700 ease-in-out flex flex-col items-center justify-center p-8
-                        ${index === activeSlide ? 'opacity-100 translate-y-0 scale-100 z-10' :
-                                    index < activeSlide ? 'opacity-0 -translate-y-10 scale-95 z-0' :
-                                        'opacity-0 translate-y-10 scale-95 z-0'}
-                    `}
+                {/* Main Content Info */}
+                <div className="relative min-h-[500px]">
+                    <AnimatePresence mode='wait'>
+                        <motion.div
+                            key={activeTab}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.3 }}
+                            className="grid lg:grid-cols-12 gap-6 lg:gap-8"
                         >
-                            <div className="bg-white rounded-[2rem] shadow-2xl border border-slate-100 p-8 md:p-12 w-full max-w-4xl mx-auto text-center transform transition-transform hover:scale-[1.01] duration-500">
-                                {/* Icon */}
-                                <div className={`h-20 w-20 ${slide.bg} rounded-3xl flex items-center justify-center mx-auto mb-8`}>
-                                    <slide.icon className={`h-10 w-10 ${slide.color}`} />
-                                </div>
+                            {/* Left Column: Image Area (Span 7) */}
+                            <div className="lg:col-span-7 relative group">
+                                <div className="relative h-[400px] md:h-[500px] w-full rounded-3xl overflow-hidden shadow-sm">
+                                    <img
+                                        src={slides[activeTab].image}
+                                        alt={slides[activeTab].title}
+                                        className="w-full h-full object-cover"
+                                    />
 
-                                {/* Content */}
-                                <h3 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">{slide.title}</h3>
-                                <p className={`text-xl font-medium ${slide.color} mb-8`}>{slide.highlight}</p>
-
-                                <div className="grid md:grid-cols-2 gap-4 text-left max-w-2xl mx-auto">
-                                    {slide.description.map((item, i) => (
-                                        <div key={i} className="flex items-start gap-3">
-                                            <CheckCircle2 className={`h-6 w-6 ${slide.color} shrink-0`} />
-                                            <span className="text-slate-600 text-lg leading-relaxed">{item}</span>
-                                        </div>
-                                    ))}
+                                    {/* Overlay Card Inside Image */}
+                                    <div className="absolute top-1/2 -translate-y-1/2 left-8 md:left-12 max-w-sm bg-white/95 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/50">
+                                        <h3 className="text-2xl font-bold text-slate-900 mb-4 leading-tight">
+                                            {slides[activeTab].overlay} made simple.
+                                        </h3>
+                                        <button className="px-6 py-2.5 bg-blue-600 text-white rounded-full text-sm font-semibold hover:bg-blue-700 transition-colors">
+                                            Read full story
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
-                </div>
 
-                {/* Progress Indicators */}
-                <div className="absolute bottom-12 left-0 right-0 z-20 flex justify-center gap-4">
-                    {slides.map((_, index) => (
-                        <button
-                            key={index}
-                            onClick={() => {
-                                // Optional: Smooth scroll to that section position if needed
-                                // For now just visual indicator as scroll drives it
-                            }}
-                            className={`h-3 rounded-full transition-all duration-500 
-                        ${index === activeSlide ? 'w-12 bg-slate-900' : 'w-3 bg-slate-300 hover:bg-slate-400'}
-                    `}
-                            aria-label={`Go to slide ${index + 1}`}
-                        />
-                    ))}
-                </div>
+                            {/* Right Column: Info Cards (Span 5) */}
+                            <div className="lg:col-span-5 flex flex-col gap-4 h-full">
 
-                {/* Scroll Progress Bar at Bottom */}
-                <div className="absolute bottom-0 left-0 h-1.5 bg-slate-100 w-full">
-                    <div
-                        className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 transition-all duration-100 ease-out"
-                        style={{ width: `${progress}%` }}
-                    />
+                                {/* Top Card: Metric/Highlight */}
+                                <div className="bg-slate-50 p-8 rounded-3xl flex-1 flex flex-col justify-center">
+                                    <div className={`h-12 w-12 ${slides[activeTab].bg} rounded-xl flex items-center justify-center mb-6`}>
+                                        {(() => {
+                                            const Icon = slides[activeTab].icon;
+                                            return <Icon className={`h-6 w-6 ${slides[activeTab].color}`} />;
+                                        })()}
+                                    </div>
+                                    <h3 className="text-2xl font-bold text-slate-900">
+                                        <span className="block text-blue-600 mb-2">{slides[activeTab].title}</span>
+                                        in student success rates.
+                                    </h3>
+                                </div>
+
+                                {/* Bottom Card: Description/Details */}
+                                <div className="bg-slate-50 p-8 rounded-3xl flex-1 flex flex-col justify-center">
+                                    <p className="text-slate-600 text-lg leading-relaxed mb-6">
+                                        "Prolync {slides[activeTab].shortTitle.toLowerCase()} features provide end-to-end visibility and {slides[activeTab].highlight.toLowerCase()}"
+                                    </p>
+
+                                    <div className="mt-auto pt-4 border-t border-slate-200">
+                                        <div className="flex flex-wrap gap-y-2 gap-x-4">
+                                            {slides[activeTab].description.slice(0, 2).map((item, i) => (
+                                                <div key={i} className="flex items-center gap-2 text-sm text-slate-500 font-medium bg-white px-3 py-1 rounded-full shadow-sm border border-slate-100">
+                                                    <CheckCircle2 className={`h-4 w-4 ${slides[activeTab].color}`} />
+                                                    {item}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </motion.div>
+                    </AnimatePresence>
                 </div>
 
             </div>
-        </div>
+        </section>
     );
 }
+

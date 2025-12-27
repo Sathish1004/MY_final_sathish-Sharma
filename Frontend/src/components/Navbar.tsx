@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, User, Menu, X, LogOut, Settings, User as UserIcon, Bell } from 'lucide-react';
 import { useState } from 'react';
@@ -18,6 +18,7 @@ interface NavbarProps {
 }
 export default function Navbar({ onLoginClick }: NavbarProps) {
     const navigate = useNavigate();
+    const location = useLocation();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const { user, signOut } = useAuth();
 
@@ -53,7 +54,17 @@ export default function Navbar({ onLoginClick }: NavbarProps) {
                                 {['All in one space', 'Easy teach', 'Hybrid cloud', 'Learning'].map((item) => (
                                     <a
                                         key={item}
-                                        href="#"
+                                        href={item === 'All in one space' ? '/#why-choose-workspace' : '#'}
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            if (item === 'All in one space') {
+                                                if (location.pathname === '/') {
+                                                    document.getElementById('why-choose-workspace')?.scrollIntoView({ behavior: 'smooth' });
+                                                } else {
+                                                    navigate('/', { state: { scrollTo: 'why-choose-workspace' } });
+                                                }
+                                            }
+                                        }}
                                         className="text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-blue-50 hover:text-blue-600 text-slate-600 transition-colors text-left"
                                     >
                                         {item}
