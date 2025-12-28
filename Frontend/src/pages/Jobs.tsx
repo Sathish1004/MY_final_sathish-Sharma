@@ -54,6 +54,15 @@ export default function Jobs() {
     return `${diffDays} days ago`;
   };
 
+  const isExpired = (deadlineStr: string) => {
+    if (!deadlineStr) return false;
+    const deadline = new Date(deadlineStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    deadline.setHours(0, 0, 0, 0);
+    return deadline < today;
+  };
+
   useEffect(() => {
     const fetchJobs = async () => {
       try {
@@ -69,7 +78,7 @@ export default function Jobs() {
             mode: j.work_mode,
             stipend: j.salary_package,
             posted: getPostedTime(j.created_at),
-            deadline: new Date(j.application_deadline).toLocaleDateString(),
+            deadline: j.application_deadline,
             isInternship: j.job_type === 'Internship',
             logo: j.company_name.substring(0, 2).toUpperCase(),
             skills: j.required_skills ? j.required_skills.split(',').map((s: string) => s.trim()) : [],
@@ -77,7 +86,8 @@ export default function Jobs() {
             roles: [], // Not available in DB
             eligibility: [], // Not available in DB
             applyUrl: j.application_link,
-            duration: 'N/A' // Not available in DB
+            duration: 'N/A',
+            status: j.status
           }));
           setJobs(mappedJobs);
         }
@@ -230,8 +240,11 @@ export default function Jobs() {
                     </div>
 
                     <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-                      <p className="text-sm text-muted-foreground">
-                        Deadline: <span className="font-medium text-foreground">{job.deadline}</span>
+                      <p className={`text-sm ${isExpired(job.deadline) ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>
+                        Deadline: <span className={isExpired(job.deadline) ? 'text-red-500' : 'text-foreground font-medium'}>
+                          {new Date(job.deadline).toLocaleDateString()}
+                        </span>
+                        {isExpired(job.deadline) && <span className="ml-2">(Job has closed)</span>}
                       </p>
 
                       <Dialog>
@@ -282,7 +295,10 @@ export default function Jobs() {
                                 </div>
                                 <div>
                                   <p className="text-xs text-muted-foreground uppercase font-bold">Deadline</p>
-                                  <p className="text-sm font-medium">{job.deadline}</p>
+                                  <p className={`text-sm font-medium ${isExpired(job.deadline) ? 'text-red-500 font-bold' : ''}`}>
+                                    {new Date(job.deadline).toLocaleDateString()}
+                                    {isExpired(job.deadline) && <span className="ml-1">(Job has closed)</span>}
+                                  </p>
                                 </div>
                                 {job.duration && (
                                   <div>
@@ -363,8 +379,9 @@ export default function Jobs() {
                               size="lg"
                               className="w-full text-lg shadow-lg hover:shadow-xl transition-all"
                               onClick={() => handleRegister(job.applyUrl)}
+                              disabled={job.status === 'Closed' || isExpired(job.deadline)}
                             >
-                              Register Now
+                              {job.status === 'Closed' || isExpired(job.deadline) ? 'Job Closed' : 'Register Now'}
                               <ExternalLink className="ml-2 h-5 w-5" />
                             </Button>
                           </div>

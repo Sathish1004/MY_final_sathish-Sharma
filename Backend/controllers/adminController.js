@@ -6,10 +6,18 @@ import bcrypt from 'bcryptjs';
 // @access  Private/Admin
 export const getAllUsers = async (req, res) => {
     try {
-        const { role, status, search, alpha, page = 1, limit = 25 } = req.query;
+        const { role, status, gender, search, alpha, page = 1, limit = 25 } = req.query;
         const offset = (page - 1) * limit;
 
-        let query = 'SELECT id, name, email, role, status, created_at, last_login FROM users WHERE 1=1';
+        let query = `
+            SELECT id, name, email, role, 
+            CASE 
+                WHEN created_at < DATE_SUB(NOW(), INTERVAL 180 DAY) THEN 'Expired'
+                ELSE status 
+            END as status,
+            gender, created_at, last_login,
+            (SELECT COALESCE(AVG(progress), 0) FROM enrollments WHERE user_id = users.id) as progress
+            FROM users WHERE 1=1`;
         let countQuery = 'SELECT COUNT(*) as total FROM users WHERE 1=1';
         const params = [];
 
@@ -21,9 +29,20 @@ export const getAllUsers = async (req, res) => {
         }
 
         if (status && status !== 'all') {
-            query += ' AND status = ?';
-            countQuery += ' AND status = ?';
-            params.push(status);
+            if (status === 'Expired') {
+                query += ' AND created_at < DATE_SUB(NOW(), INTERVAL 180 DAY)';
+                countQuery += ' AND created_at < DATE_SUB(NOW(), INTERVAL 180 DAY)';
+            } else {
+                query += ' AND status = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 180 DAY)';
+                countQuery += ' AND status = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 180 DAY)';
+                params.push(status);
+            }
+        }
+
+        if (gender && gender !== 'all') {
+            query += ' AND gender = ?';
+            countQuery += ' AND gender = ?';
+            params.push(gender);
         }
 
         if (alpha && alpha.length === 1) {
@@ -73,7 +92,7 @@ export const getAllUsers = async (req, res) => {
 export const updateUser = async (req, res) => {
     try {
         const { id } = req.params;
-        const { role, status } = req.body;
+        const { role, status, gender } = req.body;
 
         const fields = [];
         const params = [];
@@ -85,6 +104,10 @@ export const updateUser = async (req, res) => {
         if (status) {
             fields.push('status = ?');
             params.push(status);
+        }
+        if (gender) {
+            fields.push('gender = ?');
+            params.push(gender);
         }
 
         if (fields.length === 0) {

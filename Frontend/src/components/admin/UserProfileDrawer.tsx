@@ -69,6 +69,7 @@ interface UserDetails {
     status: string;
     created_at: string;
     last_login?: string;
+    gender?: 'Male' | 'Female' | 'Other';
     phone?: string;
     location?: string;
     login_method?: string;
@@ -78,7 +79,7 @@ interface UserDetails {
 }
 
 interface UserProfileDrawerProps {
-    user: { id: number; name: string; email: string; role: string; status: string } | null;
+    user: { id: number; name: string; email: string; role: string; status: string; gender?: string } | null;
     isOpen: boolean;
     onClose: () => void;
     onUserUpdated: () => void;
@@ -99,6 +100,7 @@ export default function UserProfileDrawer({ user, isOpen, onClose, onUserUpdated
     // Edit State
     const [role, setRole] = useState("Student");
     const [status, setStatus] = useState("Active");
+    const [gender, setGender] = useState("Male");
 
     const { toast } = useToast();
 
@@ -107,6 +109,7 @@ export default function UserProfileDrawer({ user, isOpen, onClose, onUserUpdated
             fetchFullUserDetails(user.id);
             setRole(user.role);
             setStatus(user.status);
+            setGender(user.gender || 'Male');
             setActiveTab("overview");
         }
     }, [isOpen, user]);
@@ -130,6 +133,7 @@ export default function UserProfileDrawer({ user, isOpen, onClose, onUserUpdated
                 if (data.user) {
                     setRole(data.user.role);
                     setStatus(data.user.status);
+                    setGender(data.user.gender || 'Male');
                 }
             }
         } catch (error) {
@@ -151,7 +155,7 @@ export default function UserProfileDrawer({ user, isOpen, onClose, onUserUpdated
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`
                 },
-                body: JSON.stringify({ role, status })
+                body: JSON.stringify({ role, status, gender })
             });
 
             if (!response.ok) throw new Error('Failed to update user');
@@ -194,14 +198,17 @@ export default function UserProfileDrawer({ user, isOpen, onClose, onUserUpdated
                             </div>
                             <div className="flex items-center gap-2 mt-3">
                                 <Badge className={`${role === 'Admin' ? 'bg-purple-500' :
-                                        role === 'Instructor' ? 'bg-orange-500' : 'bg-blue-500'
+                                    role === 'Instructor' ? 'bg-orange-500' : 'bg-blue-500'
                                     } hover:bg-opacity-80 border-0`}>
                                     {role}
                                 </Badge>
                                 <Badge variant="outline" className={`${status === 'Active' ? 'text-green-400 border-green-400/30 bg-green-400/10' :
-                                        'text-red-400 border-red-400/30 bg-red-400/10'
+                                    'text-red-400 border-red-400/30 bg-red-400/10'
                                     }`}>
                                     {status}
+                                </Badge>
+                                <Badge variant="outline" className="text-slate-300 border-slate-700/50 bg-slate-800/50">
+                                    {gender}
                                 </Badge>
                             </div>
                         </div>
@@ -469,7 +476,22 @@ export default function UserProfileDrawer({ user, isOpen, onClose, onUserUpdated
                                                 <SelectContent>
                                                     <SelectItem value="Active">Active</SelectItem>
                                                     <SelectItem value="Inactive">Inactive</SelectItem>
-                                                    <SelectItem value="Banned">Banned</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <div className="space-y-0.5">
+                                                <Label className="text-base">Gender</Label>
+                                                <p className="text-xs text-slate-500">Gender identity.</p>
+                                            </div>
+                                            <Select value={gender} onValueChange={setGender}>
+                                                <SelectTrigger className="w-[140px]">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Male">Male</SelectItem>
+                                                    <SelectItem value="Female">Female</SelectItem>
+                                                    <SelectItem value="Other">Other</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </div>

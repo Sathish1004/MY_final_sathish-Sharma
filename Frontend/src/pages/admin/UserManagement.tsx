@@ -27,18 +27,22 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { MoreHorizontal, Search, Trash2, Edit, ChevronLeft, ChevronRight, Shield, Lock, LogOut } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/components/ui/use-toast";
 import UserProfileDrawer from "@/components/admin/UserProfileDrawer";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface User {
     id: number;
     name: string;
     email: string;
     role: 'Student' | 'Instructor' | 'Admin';
-    status: 'Active' | 'Inactive' | 'Banned';
+    status: 'Active' | 'Inactive' | 'Expired';
+    gender: 'Male' | 'Female' | 'Other';
     created_at: string;
     last_login?: string;
+    progress: number;
 }
 
 export default function UserManagement() {
@@ -49,6 +53,7 @@ export default function UserManagement() {
     const [search, setSearch] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
+    const [genderFilter, setGenderFilter] = useState("all");
 
     // Pagination
     const [page, setPage] = useState(1);
@@ -79,6 +84,7 @@ export default function UserManagement() {
             const queryParams = new URLSearchParams();
             if (debouncedSearch) queryParams.append('search', debouncedSearch);
             if (statusFilter !== 'all') queryParams.append('status', statusFilter);
+            if (genderFilter !== 'all') queryParams.append('gender', genderFilter);
             queryParams.append('page', page.toString());
             queryParams.append('limit', LIMIT.toString());
 
@@ -113,7 +119,7 @@ export default function UserManagement() {
 
     useEffect(() => {
         fetchUsers();
-    }, [debouncedSearch, statusFilter, page]);
+    }, [debouncedSearch, statusFilter, genderFilter, page]);
 
     const handleSelectAll = (checked: boolean | string) => {
         if (checked === true) {
@@ -200,13 +206,14 @@ export default function UserManagement() {
             return;
         }
 
-        const headers = ["ID", "Name", "Email", "Role", "Status", "Joined Date"];
+        const headers = ["ID", "Name", "Email", "Role", "Status", "Progress", "Joined Date"];
         const rows = users.map(u => [
             u.id,
             u.name,
             u.email,
             u.role,
             u.status,
+            `${Math.round(u.progress)}%`,
             new Date(u.created_at).toLocaleDateString()
         ]);
 
@@ -242,7 +249,7 @@ export default function UserManagement() {
 
             {/* Filters & Actions Bar */}
             <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-4 rounded-lg border shadow-sm">
-                <div className="flex flex-col sm:flex-row items-center gap-2 flex-1 w-full">
+                <div className="flex flex-col sm:flex-row items-center gap-4 flex-1 w-full">
                     <div className="relative max-w-sm w-full">
                         <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
@@ -252,17 +259,28 @@ export default function UserManagement() {
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
-                    <div className="flex gap-2 w-full sm:w-auto">
-                        {/* Status Filter */}
-                        <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value); setPage(1); }}>
-                            <SelectTrigger className="w-full sm:w-[150px]">
-                                <SelectValue placeholder="All Status" />
+
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Tabs value={statusFilter} onValueChange={(value) => { setStatusFilter(value); setPage(1); }} className="w-auto">
+                            <TabsList className="bg-slate-100/50">
+                                <TabsTrigger value="all">All Users</TabsTrigger>
+                                <TabsTrigger value="Active" className="data-[state=active]:text-green-600">Active</TabsTrigger>
+                                <TabsTrigger value="Inactive">Inactive</TabsTrigger>
+                                <TabsTrigger value="Expired" className="data-[state=active]:text-red-600">Expires Candidate</TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+
+                        <div className="h-6 w-px bg-slate-200 hidden sm:block mx-1" />
+
+                        {/* Gender Filter */}
+                        <Select value={genderFilter} onValueChange={(value) => { setGenderFilter(value); setPage(1); }}>
+                            <SelectTrigger className="w-[120px] bg-white">
+                                <SelectValue placeholder="Gender" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">All Status</SelectItem>
-                                <SelectItem value="Active">Active</SelectItem>
-                                <SelectItem value="Inactive">Inactive</SelectItem>
-                                <SelectItem value="Banned">Banned</SelectItem>
+                                <SelectItem value="all">All Genders</SelectItem>
+                                <SelectItem value="Male">Male</SelectItem>
+                                <SelectItem value="Female">Female</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -284,15 +302,12 @@ export default function UserManagement() {
                 <Table>
                     <TableHeader className="bg-slate-50">
                         <TableRow>
-                            <TableHead className="w-[50px]">
-                                <Checkbox
-                                    checked={selectedUsers.length > 0 && selectedUsers.length === users.length}
-                                    onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
-                                />
-                            </TableHead>
+                            <TableHead className="w-[80px] font-bold text-slate-700">S.No</TableHead>
                             <TableHead>User Profile</TableHead>
+                            <TableHead>Gender</TableHead>
                             <TableHead>Role</TableHead>
                             <TableHead>Status</TableHead>
+                            <TableHead className="w-[150px]">Progress</TableHead>
                             <TableHead>Joined Date</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -314,7 +329,7 @@ export default function UserManagement() {
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            users.map((user) => (
+                            users.map((user, index) => (
                                 <TableRow
                                     key={user.id}
                                     className="hover:bg-slate-50 transition-colors cursor-pointer"
@@ -324,11 +339,8 @@ export default function UserManagement() {
                                         openProfile(user);
                                     }}
                                 >
-                                    <TableCell>
-                                        <Checkbox
-                                            checked={selectedUsers.includes(user.id)}
-                                            onCheckedChange={(checked) => handleSelectUser(user.id, checked as boolean)}
-                                        />
+                                    <TableCell className="font-medium text-slate-500">
+                                        {((page - 1) * LIMIT + index + 1).toString().padStart(2, '0')}
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-3">
@@ -344,6 +356,11 @@ export default function UserManagement() {
                                         </div>
                                     </TableCell>
                                     <TableCell>
+                                        <Badge variant="outline" className="text-xs font-medium border-slate-200">
+                                            {user.gender || 'N/A'}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
                                         <Badge variant="outline" className={
                                             user.role === 'Admin' ? 'bg-purple-100 text-purple-700 border-purple-200' :
                                                 user.role === 'Instructor' ? 'bg-indigo-100 text-indigo-700 border-indigo-200' :
@@ -354,8 +371,20 @@ export default function UserManagement() {
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-1.5">
-                                            <div className={`h-2 w-2 rounded-full ${user.status === 'Active' ? 'bg-green-500' : user.status === 'Banned' ? 'bg-red-500' : 'bg-slate-400'}`} />
-                                            <span className="text-sm text-slate-600">{user.status}</span>
+                                            <div className={`h-2 w-2 rounded-full ${user.status === 'Active' ? 'bg-green-500' : user.status === 'Expired' ? 'bg-red-500' : 'bg-slate-400'}`} />
+                                            <span className={`text-sm ${user.status === 'Expired' ? 'text-red-600 font-bold' : 'text-slate-600'}`}>{user.status === 'Expired' ? 'Expired' : user.status}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-col gap-1.5 w-[120px]">
+                                            <div className="flex justify-between text-[10px] font-medium text-slate-500">
+                                                <span>{Math.round(user.progress)}%</span>
+                                                <span>{user.progress >= 100 ? 'Completed' : 'Overall'}</span>
+                                            </div>
+                                            <Progress
+                                                value={user.progress}
+                                                className={`h-1.5 bg-slate-100 ${user.progress >= 80 ? '[&>div]:bg-green-500' : user.progress >= 40 ? '[&>div]:bg-blue-500' : '[&>div]:bg-amber-500'}`}
+                                            />
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-sm text-slate-500">

@@ -67,7 +67,7 @@ const features = [
         id: 6,
         title: "Events",
         subtitle: "Network & Grow",
-        description: "Join exclusive workshops, webinars, and tech meetups.",
+        description: "Join exclusive workshops, hackathons, and tech meetups.",
         hoverDesc: "Connect with peers and expand your professional network.",
         icon: Calendar,
         image: "https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=2670&auto=format&fit=crop",

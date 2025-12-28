@@ -98,6 +98,11 @@ import UserManagement from "./UserManagement";
 import CourseManagement from "./CourseManagement";
 import DashboardOverview from "@/components/admin/DashboardOverview";
 import FeatureManagement from "@/components/admin/FeatureManagement";
+import CodingOverview from '@/components/admin/module-overviews/CodingOverview';
+import MentorshipOverview from '@/components/admin/module-overviews/MentorshipOverview';
+import CoursesOverview from '@/components/admin/module-overviews/CoursesOverview';
+import ProjectsOverview from '@/components/admin/module-overviews/ProjectsOverview';
+import JobsOverview from '@/components/admin/module-overviews/JobsOverview';
 
 // Socket connection
 const socket = io("http://localhost:5000");
@@ -108,7 +113,7 @@ interface Job {
     id: number;
     title: string;
     company: string;
-    type: 'Full-time' | 'Internship' | 'Walk-in';
+    type: 'Full-time' | 'Internship';
     mode: 'Remote' | 'Onsite' | 'Hybrid';
     location: string;
     package: string;
@@ -190,7 +195,7 @@ const INITIAL_JOBS: Job[] = [
         id: 4,
         title: "Walk-in Drive: QA Engineer",
         company: "TCS",
-        type: "Walk-in",
+        type: "Full-time",
         mode: "Onsite",
         location: "Chennai",
         package: "4.5 LPA",
@@ -228,32 +233,6 @@ export default function AdminDashboard() {
     const [activeModule, setActiveModule] = useState('dashboard');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-    // -- Existing State Logic --
-    // REMOVED users state as it's now handled in UserManagement and DashboardStats
-    const [users, setUsers] = useState<any[]>([]);
-
-    useEffect(() => {
-        // We will keep this fetch for now if other components need it, or we can remove it.
-        // DashboardOverview now uses stats endpoint, UserManagement fetches its own.
-        // Keeping it for backward compatibility if other subcomponents use 'users' prop for now
-        // But optimally we should remove it. Let's keep it to avoid breaking other unknown parts.
-        const fetchUsers = async () => {
-            try {
-                const token = localStorage.getItem('token');
-                const response = await fetch('http://localhost:5000/api/admin/users', {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    setUsers(data);
-                }
-            } catch (error) {
-                console.error("Failed to fetch users", error);
-            }
-        };
-        fetchUsers();
-    }, []);
-
     const sidebarItems = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'features', label: 'Feature Management', icon: Settings },
@@ -272,7 +251,7 @@ export default function AdminDashboard() {
     const renderContent = () => {
         switch (activeModule) {
             case 'dashboard':
-                return <DashboardOverview users={users} />;
+                return <DashboardOverview />;
             case 'users':
                 return <UserManagement />; // Using standalone component
             // return <div className="p-10 text-center">User Management is currently disabled for debugging.</div>;
@@ -295,7 +274,7 @@ export default function AdminDashboard() {
             case 'feedback':
                 return <FeedbackManagement />;
             default:
-                return <DashboardOverview users={users} />;
+                return <DashboardOverview />;
         }
     };
 
@@ -375,160 +354,178 @@ export default function AdminDashboard() {
     );
 }
 
-// --- SUB-COMPONENTS ---
-// DashboardOverview has been moved to components/admin/DashboardOverview.tsx
-
-function LegacyUserManagement({ users }: { users: any[] }) {
-    return (
-        <Card className="shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                    <CardTitle>User Management</CardTitle>
-                    <CardDescription>Manage student access and roles</CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="relative">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-                        <Input placeholder="Search users..." className="pl-9 w-[250px]" />
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>User ID</TableHead>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Role</TableHead>
-                            <TableHead>Joined Date</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {users.map((user) => (
-                            <TableRow key={user.id}>
-                                <TableCell className="font-mono text-xs text-slate-500">{user.id}</TableCell>
-                                <TableCell>
-                                    <div>
-                                        <p className="font-medium text-slate-900">{user.name}</p>
-                                        <p className="text-xs text-slate-500">{user.email}</p>
-                                    </div>
-                                </TableCell>
-                                <TableCell>
-                                    <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-100">
-                                        {user.role}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell className="text-slate-500 text-sm">{user.date}</TableCell>
-                                <TableCell>
-                                    <Badge variant="outline" className={`${user.status === 'Active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                                        {user.status}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                <MoreVertical className="h-4 w-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem>View Profile</DropdownMenuItem>
-                                            <DropdownMenuItem>Edit Details</DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem className="text-red-600">
-                                                {user.status === 'Active' ? 'Block User' : 'Unblock User'}
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
-    );
-}
 
 function CoursesManagement() {
+    const [showOverview, setShowOverview] = useState(false);
+    const [courseStats, setCourseStats] = useState({ total_enrollments: 0, completion_rate: '0%', top_courses: [] });
+
+    useEffect(() => {
+        if (showOverview) {
+            fetch('http://localhost:5000/api/dashboard/courses')
+                .then(res => res.json())
+                .then(data => setCourseStats(data))
+                .catch(err => console.error("Error fetching course stats", err));
+        }
+    }, [showOverview]);
+
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Courses & Learning Paths</CardTitle>
-                <CardDescription>Manage technical courses and track student progress.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="flex flex-col items-center justify-center p-8 text-center bg-slate-50 rounded-lg dashed border-2 border-slate-200">
-                    <BookOpen className="h-10 w-10 text-slate-400 mb-2" />
-                    <h3 className="text-lg font-medium text-slate-900">Course Management Module</h3>
-                    <p className="text-slate-500 max-w-sm">This module will track enrolled courses, learning paths, and student progress.</p>
-                </div>
-            </CardContent>
-        </Card>
+        <div className="space-y-6">
+            <div className="flex justify-end">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowOverview(!showOverview)}
+                    className={`gap-2 ${showOverview ? 'bg-orange-50 border-orange-200 text-orange-700' : ''}`}
+                >
+                    <BookOpen className="h-4 w-4" />
+                    {showOverview ? "Show Management" : "Show Overview"}
+                </Button>
+            </div>
+
+            {showOverview ? (
+                <CoursesOverview courseStats={courseStats} />
+            ) : (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Courses & Learning Paths</CardTitle>
+                        <CardDescription>Manage technical courses and track student progress.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex flex-col items-center justify-center p-8 text-center bg-slate-50 rounded-lg dashed border-2 border-slate-200">
+                            <BookOpen className="h-10 w-10 text-slate-400 mb-2" />
+                            <h3 className="text-lg font-medium text-slate-900">Course Management Module</h3>
+                            <p className="text-slate-500 max-w-sm">This module will track enrolled courses, learning paths, and student progress.</p>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+        </div>
     );
 }
 
 function CodingAnalytics() {
+    const [showOverview, setShowOverview] = useState(false);
+    const [stats, setStats] = useState({ problems_solved: 0 });
+    const [topCoders, setTopCoders] = useState([]);
+
+    useEffect(() => {
+        if (showOverview) {
+            Promise.all([
+                fetch('http://localhost:5000/api/dashboard/overview'),
+                fetch('http://localhost:5000/api/dashboard/coders')
+            ]).then(async ([overviewRes, codersRes]) => {
+                if (overviewRes.ok) setStats(await overviewRes.json());
+                if (codersRes.ok) setTopCoders(await codersRes.json());
+            }).catch(err => console.error("Error fetching coding stats", err));
+        }
+    }, [showOverview]);
+
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Coding Platform Analytics</CardTitle>
-                <CardDescription>Detailed insights into student coding performance.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="flex flex-col items-center justify-center p-8 text-center bg-slate-50 rounded-lg dashed border-2 border-slate-200">
-                    <Code className="h-10 w-10 text-slate-400 mb-2" />
-                    <h3 className="text-lg font-medium text-slate-900">Coding Analytics Module</h3>
-                    <p className="text-slate-500 max-w-sm">Track problems solved, languages used, and leaderboard status.</p>
-                </div>
-            </CardContent>
-        </Card>
+        <div className="space-y-6">
+            <div className="flex justify-end">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowOverview(!showOverview)}
+                    className={`gap-2 ${showOverview ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : ''}`}
+                >
+                    <Code className="h-4 w-4" />
+                    {showOverview ? "Show Management" : "Show Overview"}
+                </Button>
+            </div>
+
+            {showOverview ? (
+                <CodingOverview stats={stats} topCoders={topCoders} />
+            ) : (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Coding Platform Analytics</CardTitle>
+                        <CardDescription>Detailed insights into student coding performance.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex flex-col items-center justify-center p-8 text-center bg-slate-50 rounded-lg dashed border-2 border-slate-200">
+                            <Code className="h-10 w-10 text-slate-400 mb-2" />
+                            <h3 className="text-lg font-medium text-slate-900">Coding Analytics Module</h3>
+                            <p className="text-slate-500 max-w-sm">Track problems solved, languages used, and leaderboard status.</p>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+        </div>
     );
 }
 
 function ProjectManagement() {
+    const [showOverview, setShowOverview] = useState(false);
+    const [projectStats, setProjectStats] = useState({ pending: 0, approved: 0, rejected: 0, recent: [] });
+
+    useEffect(() => {
+        if (showOverview) {
+            fetch('http://localhost:5000/api/dashboard/projects')
+                .then(res => res.json())
+                .then(data => setProjectStats(data))
+                .catch(err => console.error("Error fetching project stats", err));
+        }
+    }, [showOverview]);
+
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Project Submissions</CardTitle>
-                <CardDescription>Review and approve student projects.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Project Title</TableHead>
-                            <TableHead>Student</TableHead>
-                            <TableHead>Tech Stack</TableHead>
-                            <TableHead>Submission Date</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Action</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {PROJECTS.map((project) => (
-                            <TableRow key={project.id}>
-                                <TableCell className="font-medium">{project.title}</TableCell>
-                                <TableCell>{project.student}</TableCell>
-                                <TableCell>{project.stack}</TableCell>
-                                <TableCell>{project.date}</TableCell>
-                                <TableCell>
-                                    <Badge variant="outline" className={
-                                        project.status === 'Approved' ? 'bg-green-50 text-green-700' :
-                                            project.status === 'Rejected' ? 'bg-red-50 text-red-700' : 'bg-yellow-50 text-yellow-700'
-                                    }>{project.status}</Badge>
-                                </TableCell>
-                                <TableCell>
-                                    <Button size="sm" variant="outline">Review</Button>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
+        <div className="space-y-6">
+            <div className="flex justify-end">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowOverview(!showOverview)}
+                    className={`gap-2 ${showOverview ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : ''}`}
+                >
+                    <FolderKanban className="h-4 w-4" />
+                    {showOverview ? "Show Submissions" : "Show Overview"}
+                </Button>
+            </div>
+
+            {showOverview ? (
+                <ProjectsOverview projectStats={projectStats} />
+            ) : (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Project Submissions</CardTitle>
+                        <CardDescription>Review and approve student projects.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Project Title</TableHead>
+                                    <TableHead>Student</TableHead>
+                                    <TableHead>Tech Stack</TableHead>
+                                    <TableHead>Submission Date</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Action</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {PROJECTS.map((project) => (
+                                    <TableRow key={project.id}>
+                                        <TableCell className="font-medium">{project.title}</TableCell>
+                                        <TableCell>{project.student}</TableCell>
+                                        <TableCell>{project.stack}</TableCell>
+                                        <TableCell>{project.date}</TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline" className={
+                                                project.status === 'Approved' ? 'bg-green-50 text-green-700' :
+                                                    project.status === 'Rejected' ? 'bg-red-50 text-red-700' : 'bg-yellow-50 text-yellow-700'
+                                            }>{project.status}</Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Button size="sm" variant="outline">Review</Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            )}
+        </div>
     );
 }
 function MentorshipManagement() {
@@ -536,6 +533,8 @@ function MentorshipManagement() {
     const [isFeatureEnabled, setIsFeatureEnabled] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
+    const [showOverview, setShowOverview] = useState(false);
+    const [mentorshipOverviewStats, setMentorshipOverviewStats] = useState([]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -559,6 +558,15 @@ function MentorshipManagement() {
         };
         fetchData();
     }, []);
+
+    useEffect(() => {
+        if (showOverview) {
+            fetch('http://localhost:5000/api/dashboard/mentorship')
+                .then(res => res.json())
+                .then(data => setMentorshipOverviewStats(data))
+                .catch(err => console.error("Error fetching mentorship stats", err));
+        }
+    }, [showOverview]);
 
     const handleToggleFeature = async (checked: boolean) => {
         setIsLoading(true);
@@ -601,74 +609,111 @@ function MentorshipManagement() {
     };
 
     return (
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                    <CardTitle>Mentorship Sessions</CardTitle>
-                    <CardDescription>Manage mentorship feature and view sessions.</CardDescription>
-                </div>
-                <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    <div className="flex flex-col">
-                        <span className="text-sm font-medium">Mentorship Feature</span>
-                        <span className="text-xs text-slate-500">
-                            {isFeatureEnabled ? "Live for students" : "Coming Soon mode"}
-                        </span>
-                    </div>
-                    <Switch
-                        checked={isFeatureEnabled}
-                        onCheckedChange={handleToggleFeature}
-                        disabled={isLoading}
-                    />
-                </div>
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Student</TableHead>
-                            <TableHead>Mentor</TableHead>
-                            <TableHead>Topic</TableHead>
-                            <TableHead>Time</TableHead>
-                            <TableHead>Status</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {sessions.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                    No booking sessions found.
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            sessions.map((session) => (
-                                <TableRow key={session.id}>
-                                    <TableCell className="font-medium">{session.user_name}</TableCell>
-                                    <TableCell>{session.mentor_name}</TableCell>
-                                    <TableCell>{session.topic}</TableCell>
-                                    <TableCell>{session.slot_time}</TableCell>
-                                    <TableCell>
-                                        <Badge variant="secondary">{session.status}</Badge>
-                                    </TableCell>
+        <div className="space-y-6">
+            <div className="flex justify-end">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowOverview(!showOverview)}
+                    className={`gap-2 ${showOverview ? 'bg-pink-50 border-pink-200 text-pink-700' : ''}`}
+                >
+                    <GraduationCap className="h-4 w-4" />
+                    {showOverview ? "Show Sessions" : "Show Overview"}
+                </Button>
+            </div>
+
+            {showOverview ? (
+                <MentorshipOverview mentorshipStats={mentorshipOverviewStats} />
+            ) : (
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle>Mentorship Sessions</CardTitle>
+                            <CardDescription>Manage mentorship feature and view sessions.</CardDescription>
+                        </div>
+                        <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                            <div className="flex flex-col">
+                                <span className="text-sm font-medium">Mentorship Feature</span>
+                                <span className="text-xs text-slate-500">
+                                    {isFeatureEnabled ? "Live for students" : "Coming Soon mode"}
+                                </span>
+                            </div>
+                            <Switch
+                                checked={isFeatureEnabled}
+                                onCheckedChange={handleToggleFeature}
+                                disabled={isLoading}
+                            />
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Student</TableHead>
+                                    <TableHead>Mentor</TableHead>
+                                    <TableHead>Topic</TableHead>
+                                    <TableHead>Time</TableHead>
+                                    <TableHead>Status</TableHead>
                                 </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
+                            </TableHeader>
+                            <TableBody>
+                                {sessions.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                            No booking sessions found.
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    sessions.map((session) => (
+                                        <TableRow key={session.id}>
+                                            <TableCell className="font-medium">{session.user_name}</TableCell>
+                                            <TableCell>{session.mentor_name}</TableCell>
+                                            <TableCell>{session.topic}</TableCell>
+                                            <TableCell>{session.slot_time}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="secondary">{session.status}</Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            )}
+        </div>
     );
 }
 
 function JobsManagement() {
     const [jobs, setJobs] = useState<Job[]>([]);
-    const [filter, setFilter] = useState<'All' | 'Internship' | 'Full-time' | 'Walk-in' | 'Closed'>('All');
+    const [filter, setFilter] = useState<'All' | 'Internship' | 'Full-time' | 'Closed'>('All');
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [showOverview, setShowOverview] = useState(false);
+    const [jobOverviewStats, setJobOverviewStats] = useState({ active: 0, applications: 0, interviews: 0, placed: 0 });
 
-    // Form State
     const [formData, setFormData] = useState<Partial<Job>>({});
+
+    useEffect(() => {
+        if (showOverview) {
+            fetch('http://localhost:5000/api/dashboard/jobs')
+                .then(res => res.json())
+                .then(data => setJobOverviewStats(data))
+                .catch(err => console.error("Error fetching job stats", err));
+        }
+    }, [showOverview]);
+
+    const isExpired = (deadlineStr: string) => {
+        if (!deadlineStr) return false;
+        const deadline = new Date(deadlineStr);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        deadline.setHours(0, 0, 0, 0);
+        return deadline < today;
+    };
 
     const fetchJobs = async () => {
         setIsLoading(true);
@@ -706,9 +751,10 @@ function JobsManagement() {
     }, []);
 
     const filteredJobs = jobs.filter(job => {
+        const expired = isExpired(job.deadline);
         if (filter === 'All') return true;
-        if (filter === 'Closed') return job.status === 'Closed';
-        return job.type === filter && job.status !== 'Closed';
+        if (filter === 'Closed') return job.status === 'Closed' || expired;
+        return job.type === filter && job.status !== 'Closed' && !expired;
     });
 
     const handleAddNew = () => {
@@ -804,101 +850,119 @@ function JobsManagement() {
     };
 
     return (
-        <Card className="h-full border-none shadow-none">
-            <CardHeader className="px-0 pt-0 pb-6">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <CardTitle className="text-2xl font-bold">Jobs & Recruitments</CardTitle>
-                        <CardDescription>Manage active job postings, walk-ins, and internships.</CardDescription>
-                    </div>
-                    <Button onClick={handleAddNew} className="bg-blue-600 hover:bg-blue-700">
-                        <Plus className="h-4 w-4 mr-2" /> Post New Job
-                    </Button>
-                </div>
+        <div className="space-y-6">
+            <div className="flex justify-end">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowOverview(!showOverview)}
+                    className={`gap-2 ${showOverview ? 'bg-cyan-50 border-cyan-200 text-cyan-700' : ''}`}
+                >
+                    <Briefcase className="h-4 w-4" />
+                    {showOverview ? "Show Listings" : "Show Overview"}
+                </Button>
+            </div>
 
-                {/* Filters */}
-                <div className="flex gap-2 mt-6">
-                    {['All', 'Internship', 'Full-time', 'Walk-in', 'Closed'].map((f) => (
-                        <Button
-                            key={f}
-                            variant={filter === f ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setFilter(f as any)}
-                            className={filter === f ? "bg-slate-900" : "text-slate-600"}
-                        >
-                            {f}
-                        </Button>
-                    ))}
-                </div>
-            </CardHeader>
+            {showOverview ? (
+                <JobsOverview jobStats={jobOverviewStats} />
+            ) : (
+                <Card className="h-full border-none shadow-none">
+                    <CardHeader className="px-0 pt-0 pb-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <CardTitle className="text-2xl font-bold">Jobs & Recruitments</CardTitle>
+                                <CardDescription>Manage active job postings, walk-ins, and internships.</CardDescription>
+                            </div>
+                            <Button onClick={handleAddNew} className="bg-blue-600 hover:bg-blue-700">
+                                <Plus className="h-4 w-4 mr-2" /> Post New Job
+                            </Button>
+                        </div>
 
-            <CardContent className="px-0">
-                <div className="rounded-md border border-slate-200 overflow-hidden">
-                    <Table>
-                        <TableHeader className="bg-slate-50">
-                            <TableRow>
-                                <TableHead>Role & Company</TableHead>
-                                <TableHead>Type</TableHead>
-                                <TableHead>Location</TableHead>
-                                <TableHead>Posted</TableHead>
-                                <TableHead>Applicants</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-right">Action</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredJobs.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={7} className="text-center py-8 text-slate-500">
-                                        No jobs found matching this filter.
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                filteredJobs.map((job) => (
-                                    <TableRow key={job.id} className="hover:bg-slate-50/50">
-                                        <TableCell>
-                                            <div>
-                                                <p className="font-semibold text-slate-900">{job.title}</p>
-                                                <p className="text-sm text-slate-500">{job.company}</p>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="secondary" className={
-                                                job.type === 'Internship' ? 'bg-purple-50 text-purple-700' :
-                                                    job.type === 'Walk-in' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'
-                                            }>
-                                                {job.type}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-slate-600 text-sm">
-                                            <div className="flex items-center gap-1">
-                                                <MapPin className="h-3 w-3" /> {job.location}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-slate-500 text-sm">{job.postedDate}</TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-1">
-                                                <Users className="h-3 w-3 text-slate-400" />
-                                                <span className="font-medium">{job.applicants}</span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline" className={job.status === 'Active' ? 'text-green-600 border-green-200 bg-green-50' : 'text-slate-500'}>
-                                                {job.status}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="ghost" size="sm" onClick={() => handleView(job)}>
-                                                View
-                                            </Button>
-                                        </TableCell>
+                        {/* Filters */}
+                        <div className="flex gap-2 mt-6">
+                            {['All', 'Internship', 'Full-time', 'Closed'].map((f) => (
+                                <Button
+                                    key={f}
+                                    variant={filter === f ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => setFilter(f as any)}
+                                    className={filter === f ? "bg-slate-900" : "text-slate-600"}
+                                >
+                                    {f}
+                                </Button>
+                            ))}
+                        </div>
+                    </CardHeader>
+
+                    <CardContent className="px-0">
+                        <div className="rounded-md border border-slate-200 overflow-hidden">
+                            <Table>
+                                <TableHeader className="bg-slate-50">
+                                    <TableRow>
+                                        <TableHead>Role & Company</TableHead>
+                                        <TableHead>Type</TableHead>
+                                        <TableHead>Location</TableHead>
+                                        <TableHead>Deadline</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead className="text-right">Action</TableHead>
                                     </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
-            </CardContent>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredJobs.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="text-center py-8 text-slate-500">
+                                                No jobs found matching this filter.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        filteredJobs.map((job) => (
+                                            <TableRow key={job.id} className="hover:bg-slate-50/50">
+                                                <TableCell>
+                                                    <div>
+                                                        <p className="font-semibold text-slate-900">{job.title}</p>
+                                                        <p className="text-sm text-slate-500">{job.company}</p>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="secondary" className={
+                                                        job.type === 'Internship' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'
+                                                    }>
+                                                        {job.type}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-slate-600 text-sm">
+                                                    <div className="flex items-center gap-1">
+                                                        <MapPin className="h-3 w-3" /> {job.location}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className={isExpired(job.deadline) ? "text-red-600 font-bold text-sm" : "text-slate-500 text-sm"}>
+                                                    {new Date(job.deadline).toLocaleDateString()}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {isExpired(job.deadline) ? (
+                                                        <Badge variant="outline" className="text-red-600 border-red-200 bg-red-50">
+                                                            Closed
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge variant="outline" className={job.status === 'Active' ? 'text-green-600 border-green-200 bg-green-50' : 'text-slate-500'}>
+                                                            {job.status}
+                                                        </Badge>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button variant="ghost" size="sm" onClick={() => handleView(job)}>
+                                                        View
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Right Side Sheet Modal */}
             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
@@ -931,7 +995,6 @@ function JobsManagement() {
                                         <SelectContent>
                                             <SelectItem value="Full-time">Full-time</SelectItem>
                                             <SelectItem value="Internship">Internship</SelectItem>
-                                            <SelectItem value="Walk-in">Walk-in</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -1008,9 +1071,15 @@ function JobsManagement() {
                                         <p className="text-slate-500 font-medium">{selectedJob.company}</p>
                                     </div>
                                 </div>
-                                <Badge className={selectedJob.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}>
-                                    {selectedJob.status}
-                                </Badge>
+                                {isExpired(selectedJob.deadline) ? (
+                                    <Badge className="bg-red-100 text-red-700">
+                                        Closed
+                                    </Badge>
+                                ) : (
+                                    <Badge className={selectedJob.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}>
+                                        {selectedJob.status}
+                                    </Badge>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-2 gap-4 py-4 border-y border-slate-100">
@@ -1070,9 +1139,10 @@ function JobsManagement() {
                     )}
                 </SheetContent>
             </Sheet>
-        </Card>
+        </div>
     );
 }
+
 
 function PlacementsManagement() {
     return (
@@ -1117,10 +1187,11 @@ function EventsManagement() {
     const [loading, setLoading] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
+    const [showOverview, setShowOverview] = useState(false);
 
     const [formData, setFormData] = useState({
         title: '',
-        type: 'Webinar',
+        type: 'Workshop',
         date: '',
         startTime: '',
         duration: '',
@@ -1264,7 +1335,7 @@ function EventsManagement() {
                 alert(`Event ${editingId ? 'updated' : 'added'} successfully!`);
                 setFormData({
                     title: '',
-                    type: 'Webinar',
+                    type: 'Workshop',
                     date: '',
                     startTime: '',
                     duration: '',
@@ -1293,7 +1364,7 @@ function EventsManagement() {
         setEditingId(null);
         setFormData({
             title: '',
-            type: 'Webinar',
+            type: 'Workshop',
             date: '',
             startTime: '',
             duration: '',
@@ -1310,147 +1381,193 @@ function EventsManagement() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Events Management</h2>
-                    <p className="text-muted-foreground">Create and manage your events here.</p>
-                </div>
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button onClick={openNewEventSheet}>
-                            <Plus className="mr-2 h-4 w-4" /> Add Event
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-2xl">
-                        <DialogHeader>
-                            <DialogTitle>{editingId ? 'Edit Event' : 'Add New Event'}</DialogTitle>
-                            <DialogDescription>
-                                {editingId ? 'Update event details below.' : 'Fill in the details to create a new event.'}
-                            </DialogDescription>
-                        </DialogHeader>
-
-                        <form onSubmit={handleSubmit} className="space-y-4 py-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Event Title</label>
-                                    <Input name="title" value={formData.title} onChange={handleChange} required placeholder="Ex: Hackathon 2024" />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Event Type</label>
-                                    <select
-                                        name="type"
-                                        value={formData.type}
-                                        onChange={handleChange}
-                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                    >
-                                        <option value="Webinar">Webinar</option>
-                                        <option value="Workshop">Workshop</option>
-                                        <option value="Hackathon">Hackathon</option>
-                                        <option value="Paper Presentation">Paper Presentation</option>
-                                    </select>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Date</label>
-                                    <Input type="date" min={today} name="date" value={formData.date} onChange={handleChange} required />
-                                </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium">Start Time</label>
-                                        <Input type="time" name="startTime" value={formData.startTime} onChange={handleChange} required />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium">Duration (Hours)</label>
-                                        <Input type="number" step="0.5" name="duration" value={formData.duration} onChange={handleChange} placeholder="Ex: 2" required />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Location</label>
-                                    <Input name="location" value={formData.location} onChange={handleChange} required placeholder="Ex: Virtual / Main Hall" />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Prize (Optional)</label>
-                                    <Input name="prize" value={formData.prize} onChange={handleChange} placeholder="Ex: ₹10,000" />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Registration Link</label>
-                                    <Input name="registration_link" value={formData.registration_link} onChange={handleChange} required placeholder="https://..." />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Image URL</label>
-                                    <Input name="image_url" value={formData.image_url} onChange={handleChange} required placeholder="https://..." />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">Description</label>
-                                <textarea
-                                    name="description"
-                                    value={formData.description}
-                                    onChange={handleChange}
-                                    required
-                                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-                                    placeholder="Enter event details..."
-                                />
-                            </div>
-                            <div className="flex justify-end">
-                                <Button type="submit" disabled={loading}>
-                                    {loading ? (editingId ? 'Updating...' : 'Adding...') : (editingId ? 'Update Event' : 'Add Event')}
-                                </Button>
-                            </div>
-                        </form>
-                    </DialogContent>
-                </Dialog>
+            <div className="flex justify-end pt-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowOverview(!showOverview)}
+                    className={`gap-2 ${showOverview ? 'bg-amber-50 border-amber-200 text-amber-700' : ''}`}
+                >
+                    <Calendar className="h-4 w-4" />
+                    {showOverview ? "Show Management" : "Show Overview"}
+                </Button>
             </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Existing Events</CardTitle>
-                    <CardDescription>View and manage your scheduled events.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-4">
-                        {events.length === 0 ? (
-                            <p className="text-center text-muted-foreground py-4">No events found.</p>
-                        ) : (
-                            events.map((event) => (
-                                <div key={event.id} className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-accent/50 transition-colors">
-                                    <div className="space-y-1">
-                                        <h4 className="font-semibold">{event.title}</h4>
-                                        <div className="text-sm text-muted-foreground flex items-center gap-3">
-                                            <div className="flex items-center gap-1">
-                                                <Calendar className="h-3 w-3" />
-                                                {event.date}
+            {showOverview ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
+                    <Card className="bg-amber-50 border-amber-100 p-4">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium text-amber-700">Total Events</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-amber-900">{events.length}</div>
+                        </CardContent>
+                    </Card>
+                    <Card className="bg-white border-slate-100 p-4">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium text-slate-500">Upcoming Workshops</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-slate-900">
+                                {events.filter(e => e.type === 'Workshop').length}
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card className="bg-white border-slate-100 p-4">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium text-slate-500">Active Competitions</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-slate-900">
+                                {events.filter(e => e.type === 'Competition' || e.type === 'Hackathon').length}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            ) : (
+                <>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h2 className="text-2xl font-bold tracking-tight">Events Management</h2>
+                            <p className="text-muted-foreground">Create and manage your events here.</p>
+                        </div>
+                        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button onClick={openNewEventSheet}>
+                                    <Plus className="mr-2 h-4 w-4" /> Add Event
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-2xl">
+                                <DialogHeader>
+                                    <DialogTitle>{editingId ? 'Edit Event' : 'Add New Event'}</DialogTitle>
+                                    <DialogDescription>
+                                        {editingId ? 'Update event details below.' : 'Fill in the details to create a new event.'}
+                                    </DialogDescription>
+                                </DialogHeader>
+
+                                <form onSubmit={handleSubmit} className="space-y-4 py-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Event Title</label>
+                                            <Input name="title" value={formData.title} onChange={handleChange} required placeholder="Ex: Hackathon 2024" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Category</label>
+                                            <select
+                                                name="type"
+                                                value={formData.type}
+                                                onChange={handleChange}
+                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                            >
+                                                <option value="Workshop">Workshop</option>
+                                                <option value="Hackathon">Hackathon</option>
+                                                <option value="Paper Presentation">Paper Presentation</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Date</label>
+                                            <Input type="date" min={today} name="date" value={formData.date} onChange={handleChange} required />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium">Start Time</label>
+                                                <Input type="time" name="startTime" value={formData.startTime} onChange={handleChange} required />
                                             </div>
-                                            <div className="flex items-center gap-1">
-                                                <Clock className="h-3 w-3" />
-                                                {event.time}
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium">Duration (Hours)</label>
+                                                <Input type="number" step="0.5" name="duration" value={formData.duration} onChange={handleChange} placeholder="Ex: 2" required />
                                             </div>
-                                            <Badge variant="secondary" className="text-xs">{event.type}</Badge>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Location</label>
+                                            <Input name="location" value={formData.location} onChange={handleChange} required placeholder="Ex: Virtual / Main Hall" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Prize (Optional)</label>
+                                            <Input name="prize" value={formData.prize} onChange={handleChange} placeholder="Ex: ₹10,000" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Registration Link</label>
+                                            <Input name="registration_link" value={formData.registration_link} onChange={handleChange} required placeholder="https://..." />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Image URL</label>
+                                            <Input name="image_url" value={formData.image_url} onChange={handleChange} required placeholder="https://..." />
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <Button
-                                            variant="outline"
-                                            size="icon"
-                                            onClick={() => handleEdit(event)}
-                                            title="Edit Event"
-                                        >
-                                            <Edit className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                            variant="destructive"
-                                            size="icon"
-                                            onClick={() => handleDelete(event.id)}
-                                            title="Delete Event"
-                                        >
-                                            <X className="h-4 w-4" />
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">Description</label>
+                                        <textarea
+                                            name="description"
+                                            value={formData.description}
+                                            onChange={handleChange}
+                                            required
+                                            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                                            placeholder="Enter event details..."
+                                        />
+                                    </div>
+                                    <div className="flex justify-end">
+                                        <Button type="submit" disabled={loading}>
+                                            {loading ? (editingId ? 'Updating...' : 'Adding...') : (editingId ? 'Update Event' : 'Add Event')}
                                         </Button>
                                     </div>
-                                </div>
-                            ))
-                        )}
+                                </form>
+                            </DialogContent>
+                        </Dialog>
                     </div>
-                </CardContent>
-            </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Existing Events</CardTitle>
+                            <CardDescription>View and manage your scheduled events.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-4">
+                                {events.length === 0 ? (
+                                    <p className="text-center text-muted-foreground py-4">No events found.</p>
+                                ) : (
+                                    events.map((event) => (
+                                        <div key={event.id} className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-accent/50 transition-colors">
+                                            <div className="space-y-1">
+                                                <h4 className="font-semibold">{event.title}</h4>
+                                                <div className="text-sm text-muted-foreground flex items-center gap-3">
+                                                    <div className="flex items-center gap-1">
+                                                        <Calendar className="h-3 w-3" />
+                                                        {event.date}
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <Clock className="h-3 w-3" />
+                                                        {event.time}
+                                                    </div>
+                                                    <Badge variant="secondary" className="text-xs">{event.type}</Badge>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="icon"
+                                                    onClick={() => handleEdit(event)}
+                                                    title="Edit Event"
+                                                >
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="destructive"
+                                                    size="icon"
+                                                    onClick={() => handleDelete(event.id)}
+                                                    title="Delete Event"
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </>
+            )}
         </div>
     );
 }
@@ -1458,6 +1575,7 @@ function EventsManagement() {
 function FeedbackManagement() {
     const [feedback, setFeedback] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [showOverview, setShowOverview] = useState(false);
 
     useEffect(() => {
         const fetchFeedback = async () => {
@@ -1491,112 +1609,171 @@ function FeedbackManagement() {
     };
 
     return (
-        <Card className="border-0 shadow-sm bg-transparent">
-            <CardHeader className="px-0 pt-0 pb-4">
-                <CardTitle>Student Feedback & Ratings</CardTitle>
-                <CardDescription>Review detailed feedback from students regarding the platform and courses.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-                <div className="rounded-md border bg-white shadow-sm overflow-hidden">
-                    <div className="relative w-full overflow-auto max-h-[calc(100vh-250px)]">
-                        <Table>
-                            <TableHeader className="bg-slate-50 sticky top-0 z-10 shadow-sm">
-                                <TableRow>
-                                    <TableHead className="w-[60px] font-bold text-slate-700">S.No</TableHead>
-                                    <TableHead className="w-[120px] font-bold text-slate-700">Date</TableHead>
-                                    <TableHead className="w-[180px] font-bold text-slate-700">User</TableHead>
-                                    <TableHead className="w-[140px] font-bold text-slate-700">Overall Rating</TableHead>
+        <div className="space-y-6">
+            <div className="flex justify-end pt-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowOverview(!showOverview)}
+                    className={`gap-2 ${showOverview ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : ''}`}
+                >
+                    <MessageSquare className="h-4 w-4" />
+                    {showOverview ? "Show Detailed Feedback" : "Show Overview"}
+                </Button>
+            </div>
 
-                                    <TableHead className="min-w-[200px] font-bold text-slate-700">Detailed Ratings</TableHead>
-                                    <TableHead className="min-w-[250px] font-bold text-slate-700">General Feedback</TableHead>
-                                    <TableHead className="min-w-[200px] font-bold text-slate-700">Additional Comments</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {isLoading ? (
-                                    <TableRow>
-                                        <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                                            Loading feedback...
-                                        </TableCell>
-                                    </TableRow>
-                                ) : feedback.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={7} className="h-32 text-center">
-                                            <div className="flex flex-col items-center justify-center text-muted-foreground">
-                                                <MessageSquare className="h-8 w-8 mb-2 opacity-20" />
-                                                <p>No feedback received yet</p>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    feedback.map((item, index) => (
-                                        <TableRow key={item.id} className="even:bg-slate-50 hover:bg-slate-100 transition-colors">
-                                            <TableCell className="font-medium text-slate-500">
-                                                {(index + 1).toString().padStart(2, '0')}
-                                            </TableCell>
-                                            <TableCell className="text-slate-500 text-sm">
-                                                {new Date(item.created_at).toLocaleDateString('en-US', {
-                                                    year: 'numeric',
-                                                    month: 'short',
-                                                    day: 'numeric'
-                                                })}
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex flex-col">
-                                                    <span className="font-semibold text-slate-900 text-sm">{item.user_name}</span>
-                                                    <span className="text-xs text-slate-400 max-w-[150px] truncate" title={item.user_email}>
-                                                        {item.user_email}
-                                                    </span>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center">
-                                                    <Badge variant="secondary" className="bg-yellow-50 text-yellow-700 border-yellow-200 px-2 py-0.5 rounded-full flex gap-1 items-center">
-                                                        <span className="font-bold">{item.rating}</span>
-                                                        <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
-                                                    </Badge>
-                                                </div>
-                                            </TableCell>
-
-                                            <TableCell>
-                                                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                                                    <div className="flex justify-between items-center text-slate-600">
-                                                        <span>Course:</span>
-                                                        <span className="font-medium text-slate-900">{item.rating_course || '-'}</span>
-                                                    </div>
-                                                    <div className="flex justify-between items-center text-slate-600">
-                                                        <span>UI:</span>
-                                                        <span className="font-medium text-slate-900">{item.rating_ui || '-'}</span>
-                                                    </div>
-                                                    <div className="flex justify-between items-center text-slate-600">
-                                                        <span>UX:</span>
-                                                        <span className="font-medium text-slate-900">{item.rating_ux || '-'}</span>
-                                                    </div>
-                                                    <div className="flex justify-between items-center text-slate-600">
-                                                        <span>Code:</span>
-                                                        <span className="font-medium text-slate-900">{item.rating_coding || '-'}</span>
-                                                    </div>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <p className="text-sm text-slate-700 line-clamp-2 max-w-[250px]" title={item.message}>
-                                                    {item.message}
-                                                </p>
-                                            </TableCell>
-                                            <TableCell>
-                                                <p className="text-sm text-slate-500 italic line-clamp-2 max-w-[200px]" title={item.comments}>
-                                                    {item.comments || 'No additional comments'}
-                                                </p>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
+            {showOverview ? (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+                    <Card className="bg-indigo-50 border-indigo-100 p-4">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium text-indigo-700">Total Feedback</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-indigo-900">{feedback.length}</div>
+                        </CardContent>
+                    </Card>
+                    <Card className="bg-white border-slate-100 p-4">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium text-slate-500">Avg. Rating</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-slate-900">
+                                {feedback.length > 0
+                                    ? (feedback.reduce((acc, curr) => acc + (curr.rating || 0), 0) / feedback.length).toFixed(1)
+                                    : "0.0"}
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card className="bg-white border-slate-100 p-4">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium text-slate-500">Positive</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-green-600">
+                                {feedback.filter(f => f.rating >= 4).length}
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card className="bg-white border-slate-100 p-4">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium text-slate-500">Needs Attention</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-red-500">
+                                {feedback.filter(f => f.rating <= 2).length}
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
-            </CardContent>
-        </Card>
+            ) : (
+                <Card className="border-0 shadow-sm bg-transparent">
+                    <CardHeader className="px-0 pt-0 pb-4">
+                        <CardTitle>Student Feedback & Ratings</CardTitle>
+                        <CardDescription>Review detailed feedback from students regarding the platform and courses.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <div className="rounded-md border bg-white shadow-sm overflow-hidden">
+                            <div className="relative w-full overflow-auto max-h-[calc(100vh-250px)]">
+                                <Table>
+                                    <TableHeader className="bg-slate-50 sticky top-0 z-10 shadow-sm">
+                                        <TableRow>
+                                            <TableHead className="w-[60px] font-bold text-slate-700">S.No</TableHead>
+                                            <TableHead className="w-[120px] font-bold text-slate-700">Date</TableHead>
+                                            <TableHead className="w-[180px] font-bold text-slate-700">User</TableHead>
+                                            <TableHead className="w-[140px] font-bold text-slate-700">Overall Rating</TableHead>
+
+                                            <TableHead className="min-w-[200px] font-bold text-slate-700">Detailed Ratings</TableHead>
+                                            <TableHead className="min-w-[250px] font-bold text-slate-700">General Feedback</TableHead>
+                                            <TableHead className="min-w-[200px] font-bold text-slate-700">Additional Comments</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {isLoading ? (
+                                            <TableRow>
+                                                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                                                    Loading feedback...
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : feedback.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={7} className="h-32 text-center">
+                                                    <div className="flex flex-col items-center justify-center text-muted-foreground">
+                                                        <MessageSquare className="h-8 w-8 mb-2 opacity-20" />
+                                                        <p>No feedback received yet</p>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            feedback.map((item, index) => (
+                                                <TableRow key={item.id} className="even:bg-slate-50 hover:bg-slate-100 transition-colors">
+                                                    <TableCell className="font-medium text-slate-500">
+                                                        {(index + 1).toString().padStart(2, '0')}
+                                                    </TableCell>
+                                                    <TableCell className="text-slate-500 text-sm">
+                                                        {new Date(item.created_at).toLocaleDateString('en-US', {
+                                                            year: 'numeric',
+                                                            month: 'short',
+                                                            day: 'numeric'
+                                                        })}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex flex-col">
+                                                            <span className="font-semibold text-slate-900 text-sm">{item.user_name}</span>
+                                                            <span className="text-xs text-slate-400 max-w-[150px] truncate" title={item.user_email}>
+                                                                {item.user_email}
+                                                            </span>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex items-center">
+                                                            <Badge variant="secondary" className="bg-yellow-50 text-yellow-700 border-yellow-200 px-2 py-0.5 rounded-full flex gap-1 items-center">
+                                                                <span className="font-bold">{item.rating}</span>
+                                                                <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
+                                                            </Badge>
+                                                        </div>
+                                                    </TableCell>
+
+                                                    <TableCell>
+                                                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                                            <div className="flex justify-between items-center text-slate-600">
+                                                                <span>Course:</span>
+                                                                <span className="font-medium text-slate-900">{item.rating_course || '-'}</span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center text-slate-600">
+                                                                <span>UI:</span>
+                                                                <span className="font-medium text-slate-900">{item.rating_ui || '-'}</span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center text-slate-600">
+                                                                <span>UX:</span>
+                                                                <span className="font-medium text-slate-900">{item.rating_ux || '-'}</span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center text-slate-600">
+                                                                <span>Code:</span>
+                                                                <span className="font-medium text-slate-900">{item.rating_coding || '-'}</span>
+                                                            </div>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <p className="text-sm text-slate-700 line-clamp-2 max-w-[250px]" title={item.message}>
+                                                            {item.message}
+                                                        </p>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <p className="text-sm text-slate-500 italic line-clamp-2 max-w-[200px]" title={item.comments}>
+                                                            {item.comments || 'No additional comments'}
+                                                        </p>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+        </div>
     );
 }
 
@@ -1614,6 +1791,7 @@ function NewsManagement() {
         external_link: ""
     });
     const [editId, setEditId] = useState<number | null>(null);
+    const [showOverview, setShowOverview] = useState(false);
 
     const initialFormState = {
         title: "",
@@ -1734,167 +1912,214 @@ function NewsManagement() {
     };
 
     return (
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                    <CardTitle>News & Updates</CardTitle>
-                    <CardDescription>Manage platform announcements and tech news.</CardDescription>
+        <div className="space-y-6">
+            <div className="flex justify-end pt-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowOverview(!showOverview)}
+                    className={`gap-2 ${showOverview ? 'bg-blue-50 border-blue-200 text-blue-700' : ''}`}
+                >
+                    <Newspaper className="h-4 w-4" />
+                    {showOverview ? "Show Listings" : "Show Overview"}
+                </Button>
+            </div>
+
+            {showOverview ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
+                    <Card className="bg-blue-50 border-blue-100 p-4">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium text-blue-700">Live Articles</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-blue-900">{news.filter(n => n.status === 'Publish').length}</div>
+                        </CardContent>
+                    </Card>
+                    <Card className="bg-white border-slate-100 p-4">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium text-slate-500">Tech Updates</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-slate-900">
+                                {news.filter(n => n.category === 'Tech Update').length}
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card className="bg-white border-slate-100 p-4">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium text-slate-500">Exam Notifications</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-slate-900">
+                                {news.filter(n => n.category === 'Exam Update').length}
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
-                <Dialog open={isAddOpen} onOpenChange={handleOpenChange}>
-                    <DialogTrigger asChild>
-                        <Button className="bg-blue-600 hover:bg-blue-700">
-                            <Newspaper className="mr-2 h-4 w-4" />
-                            Add News/Exam Update
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-2xl">
-                        <DialogHeader>
-                            <DialogTitle>{editId ? 'Edit News/Exam Update' : 'Add News/Exam Update'}</DialogTitle>
-                            <DialogDescription>{editId ? 'Update the details of the article.' : 'Create a new announcement or update.'}</DialogDescription>
-                        </DialogHeader>
-                        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="title">Title</Label>
-                                <Input
-                                    id="title"
-                                    name="title"
-                                    placeholder="Enter article title"
-                                    value={formData.title}
-                                    onChange={handleChange}
-                                    required
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="description">Description</Label>
-                                <Textarea
-                                    id="description"
-                                    name="description"
-                                    placeholder="Enter article content..."
-                                    className="min-h-[100px]"
-                                    value={formData.description}
-                                    onChange={handleChange}
-                                    required
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="category">Category</Label>
-                                    <Select
-                                        value={formData.category}
-                                        onValueChange={(value) => handleSelectChange('category', value)}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select category" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Tech Update">Tech Update</SelectItem>
-                                            <SelectItem value="Exam Update">Exam Update</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="status">Status</Label>
-                                    <Select
-                                        value={formData.status}
-                                        onValueChange={(value) => handleSelectChange('status', value)}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select status" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Publish">Publish</SelectItem>
-                                            <SelectItem value="Draft">Draft</SelectItem>
-                                            <SelectItem value="Archived">Archived</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="publish_date">Publish Date</Label>
-                                    <Input
-                                        id="publish_date"
-                                        name="publish_date"
-                                        type="date"
-                                        value={formData.publish_date}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="image_url">Image URL</Label>
-                                    <Input
-                                        id="image_url"
-                                        name="image_url"
-                                        placeholder="https://example.com/image.jpg"
-                                        value={formData.image_url}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="external_link">External Link</Label>
-                                <Input
-                                    id="external_link"
-                                    name="external_link"
-                                    placeholder="https://example.com/article"
-                                    value={formData.external_link}
-                                    onChange={handleChange}
-                                />
-                            </div>
-
-                            <DialogFooter>
-                                <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button>
-                                <Button type="submit" disabled={isLoading}>
-                                    {isLoading ? (editId ? 'Updating...' : 'Publishing...') : (editId ? 'Update Article' : 'Publish Article')}
+            ) : (
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle>News & Updates</CardTitle>
+                            <CardDescription>Manage platform announcements and tech news.</CardDescription>
+                        </div>
+                        <Dialog open={isAddOpen} onOpenChange={handleOpenChange}>
+                            <DialogTrigger asChild>
+                                <Button className="bg-blue-600 hover:bg-blue-700">
+                                    <Newspaper className="mr-2 h-4 w-4" />
+                                    Add News/Exam Update
                                 </Button>
-                            </DialogFooter>
-                        </form>
-                    </DialogContent>
-                </Dialog>
-            </CardHeader>
-            <CardContent>
-                {news.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center p-8 text-center bg-slate-50 rounded-lg dashed border-2 border-slate-200">
-                        <Newspaper className="h-10 w-10 text-slate-400 mb-2" />
-                        <h3 className="text-lg font-medium text-slate-900">No News Articles</h3>
-                        <p className="text-slate-500 max-w-sm">Get started by adding a new article.</p>
-                    </div>
-                ) : (
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Title</TableHead>
-                                <TableHead>Category</TableHead>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-right">Action</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {news.map((item) => (
-                                <TableRow key={item.id}>
-                                    <TableCell className="font-medium">{item.title}</TableCell>
-                                    <TableCell>{item.category}</TableCell>
-                                    <TableCell>{new Date(item.publish_date).toLocaleDateString()}</TableCell>
-                                    <TableCell>
-                                        <Badge variant="outline" className={item.status === 'Publish' ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'}>
-                                            {item.status}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right space-x-2">
-                                        <Button size="sm" variant="ghost" onClick={() => handleEdit(item)}>Edit</Button>
-                                        <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleDelete(item.id)}>Delete</Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                )}
-            </CardContent>
-        </Card>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-2xl">
+                                <DialogHeader>
+                                    <DialogTitle>{editId ? 'Edit News/Exam Update' : 'Add News/Exam Update'}</DialogTitle>
+                                    <DialogDescription>{editId ? 'Update the details of the article.' : 'Create a new announcement or update.'}</DialogDescription>
+                                </DialogHeader>
+                                <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="title">Title</Label>
+                                        <Input
+                                            id="title"
+                                            name="title"
+                                            placeholder="Enter article title"
+                                            value={formData.title}
+                                            onChange={handleChange}
+                                            required
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="description">Description</Label>
+                                        <Textarea
+                                            id="description"
+                                            name="description"
+                                            placeholder="Enter article content..."
+                                            className="min-h-[100px]"
+                                            value={formData.description}
+                                            onChange={handleChange}
+                                            required
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="category">Category</Label>
+                                            <Select
+                                                value={formData.category}
+                                                onValueChange={(value) => handleSelectChange('category', value)}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select category" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Tech Update">Tech Update</SelectItem>
+                                                    <SelectItem value="Exam Update">Exam Update</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="status">Status</Label>
+                                            <Select
+                                                value={formData.status}
+                                                onValueChange={(value) => handleSelectChange('status', value)}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select status" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Publish">Publish</SelectItem>
+                                                    <SelectItem value="Draft">Draft</SelectItem>
+                                                    <SelectItem value="Archived">Archived</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="publish_date">Publish Date</Label>
+                                            <Input
+                                                id="publish_date"
+                                                name="publish_date"
+                                                type="date"
+                                                value={formData.publish_date}
+                                                onChange={handleChange}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="image_url">Image URL</Label>
+                                            <Input
+                                                id="image_url"
+                                                name="image_url"
+                                                placeholder="https://example.com/image.jpg"
+                                                value={formData.image_url}
+                                                onChange={handleChange}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="external_link">External Link</Label>
+                                        <Input
+                                            id="external_link"
+                                            name="external_link"
+                                            placeholder="https://example.com/article"
+                                            value={formData.external_link}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+
+                                    <DialogFooter>
+                                        <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button>
+                                        <Button type="submit" disabled={isLoading}>
+                                            {isLoading ? (editId ? 'Updating...' : 'Publishing...') : (editId ? 'Update Article' : 'Publish Article')}
+                                        </Button>
+                                    </DialogFooter>
+                                </form>
+                            </DialogContent>
+                        </Dialog>
+                    </CardHeader>
+                    <CardContent>
+                        {news.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center p-8 text-center bg-slate-50 rounded-lg dashed border-2 border-slate-200">
+                                <Newspaper className="h-10 w-10 text-slate-400 mb-2" />
+                                <h3 className="text-lg font-medium text-slate-900">No News Articles</h3>
+                                <p className="text-slate-500 max-w-sm">Get started by adding a new article.</p>
+                            </div>
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Title</TableHead>
+                                        <TableHead>Category</TableHead>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead className="text-right">Action</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {news.map((item) => (
+                                        <TableRow key={item.id}>
+                                            <TableCell className="font-medium">{item.title}</TableCell>
+                                            <TableCell>{item.category}</TableCell>
+                                            <TableCell>{new Date(item.publish_date).toLocaleDateString()}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline" className={item.status === 'Publish' ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'}>
+                                                    {item.status}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right space-x-2">
+                                                <Button size="sm" variant="ghost" onClick={() => handleEdit(item)}>Edit</Button>
+                                                <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleDelete(item.id)}>Delete</Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
+        </div>
     );
 }

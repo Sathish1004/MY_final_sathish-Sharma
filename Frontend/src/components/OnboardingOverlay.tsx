@@ -47,7 +47,7 @@ const TOUR_STEPS = [
     {
         targetId: 'nav-item-events',
         title: 'Events',
-        description: 'Join live webinars, workshops, and events.',
+        description: 'Join live workshops, hackathons, and events.',
         sidebarHighlight: 'Events'
     },
     {
@@ -284,7 +284,7 @@ export default function OnboardingOverlay() {
 
                         {/* WhatsApp Style Card */}
                         <div className={cn(
-                            "bg-white text-[#075e54] w-[320px] rounded-lg shadow-xl border border-[#25D366]/20 relative overflow-hidden transition-all duration-500",
+                            "bg-white text-[#075e54] w-[380px] rounded-lg shadow-xl border border-[#25D366]/20 relative overflow-hidden transition-all duration-500",
                             // In center mode, maybe slightly larger or more prominent?
                             stage === 'center' ? "shadow-2xl scale-105" : ""
                         )}>
@@ -326,7 +326,20 @@ export default function OnboardingOverlay() {
                                         ))}
                                     </div>
 
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-2 items-center">
+                                        {/* Skip button logic */}
+                                        {currentStep < TOUR_STEPS.length - 1 && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={finishTour}
+                                                disabled={isAnimating}
+                                                className="h-8 px-3 text-slate-400 hover:text-red-500 hover:bg-transparent"
+                                            >
+                                                Skip
+                                            </Button>
+                                        )}
+
                                         {/* Back button logic */}
                                         {currentStep > 0 && (
                                             <Button

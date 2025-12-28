@@ -10,13 +10,10 @@ import {
     Zap,
     TrendingUp,
     Activity,
-    MoreHorizontal,
-    ArrowUpRight,
-    Calendar,
-    Clock,
     UserCheck,
     MessageSquare,
-    Plus
+    Plus,
+    Calendar
 } from "lucide-react";
 import {
     DropdownMenu,
@@ -36,17 +33,14 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-    LineChart,
-    Line,
+    AreaChart,
+    Area,
     XAxis,
     YAxis,
     CartesianGrid,
     Tooltip as RechartsTooltip,
     ResponsiveContainer,
-    AreaChart,
-    Area
 } from "recharts";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface CoderStats {
@@ -76,12 +70,6 @@ interface MentorshipSession {
     mentor: string;
     time: string;
     status: string;
-}
-
-interface MentorshipStats {
-    total_sessions: number;
-    active_mentors: number;
-    upcoming_sessions: MentorshipSession[];
 }
 
 interface ProjectStats {
@@ -115,7 +103,7 @@ interface ActivityItem {
     time: string;
 }
 
-export default function DashboardOverview({ users }: { users?: any[] }) {
+export default function DashboardOverview() {
     const [stats, setStats] = useState<DashboardStats>({
         total_users: 0,
         daily_active_users: 0,
@@ -135,7 +123,7 @@ export default function DashboardOverview({ users }: { users?: any[] }) {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [activeDrawerModule, setActiveDrawerModule] = useState<string | null>(null);
 
-    // --- State for Module-Specific Analytics ---
+    // --- State for Module-Specific Analytics (to pass to Quick Access Drawer) ---
     const [topCoders, setTopCoders] = useState<CoderStats[]>([]);
     const [courseStats, setCourseStats] = useState<CourseStats>({ total_enrollments: 0, completion_rate: '0%', top_courses: [] });
     const [mentorshipStats, setMentorshipStats] = useState<MentorshipSession[]>([]);
@@ -162,7 +150,6 @@ export default function DashboardOverview({ users }: { users?: any[] }) {
 
                 if (growthRes.ok) {
                     const data = await growthRes.json();
-                    // Format date for chart
                     const formattedData = data.map((d: any) => ({
                         date: new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
                         count: d.count
@@ -342,12 +329,10 @@ export default function DashboardOverview({ users }: { users?: any[] }) {
                 />
             </div>
 
-            {/* --- Platform Growth & Activity (Bitcoin/Crypto Style) --- */}
+            {/* --- Platform Growth & Activity --- */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <Card className="lg:col-span-2 shadow-lg border-slate-100 overflow-hidden relative">
-                    {/* Background subtle glow */}
                     <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/50 rounded-full blur-3xl -z-10 translate-x-1/2 -translate-y-1/2"></div>
-
                     <CardHeader className="pb-0">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div>
@@ -385,19 +370,8 @@ export default function DashboardOverview({ users }: { users?: any[] }) {
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                        <XAxis
-                                            dataKey="date"
-                                            tickLine={false}
-                                            axisLine={false}
-                                            tick={{ fontSize: 11, fill: '#94a3b8' }}
-                                            dy={10}
-                                        />
-                                        <YAxis
-                                            tickLine={false}
-                                            axisLine={false}
-                                            tick={{ fontSize: 11, fill: '#94a3b8' }}
-                                            tickCount={5}
-                                        />
+                                        <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} dy={10} />
+                                        <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} tickCount={5} />
                                         <RechartsTooltip
                                             contentStyle={{
                                                 backgroundColor: '#1e293b',
@@ -409,15 +383,7 @@ export default function DashboardOverview({ users }: { users?: any[] }) {
                                             itemStyle={{ color: '#fff' }}
                                             cursor={{ stroke: '#6366f1', strokeWidth: 1, strokeDasharray: '4 4' }}
                                         />
-                                        <Area
-                                            type="monotone"
-                                            dataKey="count"
-                                            stroke="#4f46e5"
-                                            strokeWidth={3}
-                                            fillOpacity={1}
-                                            fill="url(#colorGrowth)"
-                                            activeDot={{ r: 6, strokeWidth: 0, fill: '#4f46e5' }}
-                                        />
+                                        <Area type="monotone" dataKey="count" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorGrowth)" activeDot={{ r: 6, strokeWidth: 0, fill: '#4f46e5' }} />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             ) : (
@@ -449,7 +415,7 @@ export default function DashboardOverview({ users }: { users?: any[] }) {
                                 activityFeed.map((item, i) => (
                                     <div key={i} className="flex gap-3 group">
                                         <div className={`mt-1 h-8 w-8 rounded-lg flex items-center justify-center shrink-0 border shadow-sm transition-colors
-                                            ${item.type === 'registration' ? 'bg-blue-50 border-blue-100 text-blue-600 group-hover:bg-blue-100 group-hover:border-blue-200' :
+                                        ${item.type === 'registration' ? 'bg-blue-50 border-blue-100 text-blue-600 group-hover:bg-blue-100 group-hover:border-blue-200' :
                                                 item.type === 'feedback' ? 'bg-orange-50 border-orange-100 text-orange-600 group-hover:bg-orange-100 group-hover:border-orange-200' :
                                                     'bg-slate-50 border-slate-100 text-slate-600'
                                             }`}>
@@ -481,265 +447,6 @@ export default function DashboardOverview({ users }: { users?: any[] }) {
                     </CardContent>
                 </Card>
             </div>
-
-            {/* --- CODING PLATFORM SECTION --- */}
-            <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                        <Code className="h-5 w-5 text-indigo-600" />
-                        Coding Platform Analytics
-                    </h3>
-                    <Button variant="ghost" size="sm" className="text-indigo-600">View All</Button>
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                    <Card className="lg:col-span-1 bg-indigo-50 border-indigo-100">
-                        <CardContent className="p-6 space-y-4">
-                            <div>
-                                <p className="text-sm text-indigo-600 font-medium">Items Attempted</p>
-                                <p className="text-3xl font-bold text-indigo-900">4,281</p>
-                            </div>
-                            <div>
-                                <p className="text-sm text-indigo-600 font-medium">Problems Solved</p>
-                                <p className="text-3xl font-bold text-indigo-900">{stats.problems_solved}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm text-indigo-600 font-medium">Active Coders</p>
-                                <p className="text-3xl font-bold text-indigo-900">142</p>
-                                <p className="text-xs text-indigo-400 mt-1">Daily Avg.</p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <Card className="lg:col-span-3">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-base">Top Coders Leaderboard</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm text-left">
-                                    <thead className="text-xs text-slate-500 uppercase bg-slate-50">
-                                        <tr>
-                                            <th className="px-4 py-3 rounded-l-md">Rank</th>
-                                            <th className="px-4 py-3">User Name</th>
-                                            <th className="px-4 py-3">Email</th>
-                                            <th className="px-4 py-3">Problems Solved</th>
-                                            <th className="px-4 py-3">Completion %</th>
-                                            <th className="px-4 py-3 rounded-r-md">Last Active</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {topCoders.length > 0 ? (
-                                            topCoders.map((coder, i) => (
-                                                <tr key={i} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50">
-                                                    <td className="px-4 py-3 font-semibold text-slate-700">#{coder.rank}</td>
-                                                    <td className="px-4 py-3 font-medium text-slate-900">{coder.name}</td>
-                                                    <td className="px-4 py-3 text-slate-500">{coder.email}</td>
-                                                    <td className="px-4 py-3 font-mono text-indigo-600 font-bold">{coder.solved}</td>
-                                                    <td className="px-4 py-3">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-16 h-2 bg-slate-100 rounded-full overflow-hidden">
-                                                                <div className="h-full bg-indigo-500" style={{ width: coder.percent }}></div>
-                                                            </div>
-                                                            <span className="text-xs font-medium">{coder.percent}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-slate-500">{coder.active}</td>
-                                                </tr>
-                                            ))
-                                        ) : (
-                                            <tr>
-                                                <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
-                                                    No top coders data available.
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
-
-            {/* --- MENTORSHIP SECTION --- */}
-            <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                        <GraduationCap className="h-5 w-5 text-pink-600" />
-                        Mentorship Sessions
-                    </h3>
-                    <Button variant="ghost" size="sm" className="text-pink-600">View All Bookings</Button>
-                </div>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-base">Recent Mentorship Bookings</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left">
-                                <thead className="text-xs text-slate-500 uppercase bg-slate-50">
-                                    <tr>
-                                        <th className="px-4 py-3 rounded-l-md">Student Name</th>
-                                        <th className="px-4 py-3">Student Email</th>
-                                        <th className="px-4 py-3">Mentor Name</th>
-                                        <th className="px-4 py-3">Date & Time</th>
-                                        <th className="px-4 py-3 rounded-r-md">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {mentorshipStats.length > 0 ? (
-                                        mentorshipStats.map((session, i) => (
-                                            <tr key={i} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50">
-                                                <td className="px-4 py-3 font-medium text-slate-900">{session.name}</td>
-                                                <td className="px-4 py-3 text-slate-500">{session.email}</td>
-                                                <td className="px-4 py-3 text-slate-700">{session.mentor}</td>
-                                                <td className="px-4 py-3 text-slate-500 font-mono text-xs">{session.time}</td>
-                                                <td className="px-4 py-3">
-                                                    <Badge variant="outline" className={
-                                                        session.status === 'Upcoming' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                                            session.status === 'Completed' ? 'bg-green-50 text-green-700 border-green-200' :
-                                                                'bg-red-50 text-red-700 border-red-200'
-                                                    }>
-                                                        {session.status}
-                                                    </Badge>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-500">No recent sessions found.</td></tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* --- COURSES & PROJECTS (2 Cols) --- */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Courses */}
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                            <BookOpen className="h-5 w-5 text-orange-600" />
-                            Courses Overview
-                        </h3>
-                    </div>
-                    <Card>
-                        <CardContent className="p-0">
-                            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-orange-50/30">
-                                <div>
-                                    <p className="text-sm text-slate-500">Total Enrollments</p>
-                                    <p className="text-2xl font-bold text-slate-900">{courseStats.total_enrollments}</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-sm text-slate-500">Completion Rate</p>
-                                    <p className="text-2xl font-bold text-green-600">{courseStats.completion_rate}</p>
-                                </div>
-                            </div>
-                            <div className="p-4">
-                                <p className="text-sm font-semibold text-slate-900 mb-3">Top Performing Courses</p>
-                                <div className="space-y-3">
-                                    {courseStats.top_courses.length > 0 ? (
-                                        courseStats.top_courses.map((course, i) => (
-                                            <div key={i} className="flex items-center justify-between text-sm">
-                                                <span className="text-slate-700 truncate max-w-[180px]">{course.name}</span>
-                                                <div className="flex items-center gap-3">
-                                                    <span className="text-slate-400 text-xs">{course.students} students</span>
-                                                    <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                        <div className="h-full bg-orange-500" style={{ width: `${course.progress}%` }}></div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <p className="text-xs text-slate-400">No courses data available.</p>
-                                    )}
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Projects */}
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                            <FolderKanban className="h-5 w-5 text-purple-600" />
-                            Project Submissions
-                        </h3>
-                    </div>
-                    <Card>
-                        <CardContent className="p-0">
-                            <div className="p-4 border-b border-slate-100 flex gap-4 bg-purple-50/30">
-                                <div className="flex-1">
-                                    <p className="text-xs text-slate-500 uppercase tracking-wider">Pending</p>
-                                    <p className="text-xl font-bold text-orange-600">{projectStats.pending}</p>
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-xs text-slate-500 uppercase tracking-wider">Approved</p>
-                                    <p className="text-xl font-bold text-green-600">{projectStats.approved}</p>
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-xs text-slate-500 uppercase tracking-wider">Rejected</p>
-                                    <p className="text-xl font-bold text-red-600">{projectStats.rejected}</p>
-                                </div>
-                            </div>
-                            <div className="p-0">
-                                <table className="w-full text-sm text-left">
-                                    <tbody>
-                                        {projectStats.recent.length > 0 ? (
-                                            projectStats.recent.map((p, i) => (
-                                                <tr key={i} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50">
-                                                    <td className="px-4 py-3 font-medium text-slate-800">{p.title}</td>
-                                                    <td className="px-4 py-3 text-slate-500">{p.student}</td>
-                                                    <td className="px-4 py-3 text-right">
-                                                        <span className={`inline-block w-2 h-2 rounded-full mr-2 ${p.status === 'Approved' ? 'bg-green-500' :
-                                                            p.status === 'Pending' ? 'bg-orange-500' : 'bg-red-500'
-                                                            }`}></span>
-                                                        {p.status}
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        ) : (
-                                            <tr><td colSpan={3} className="px-4 py-6 text-center text-slate-500">No recent submissions.</td></tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
-
-            {/* --- JOBS & PLACEMENTS --- */}
-            <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                        <Briefcase className="h-5 w-5 text-cyan-600" />
-                        Jobs & Placements
-                    </h3>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <Card className="bg-cyan-50 border-cyan-100 p-4 flex flex-col items-center justify-center text-center">
-                        <p className="text-sm text-cyan-700 font-medium">Active Listings</p>
-                        <p className="text-2xl font-bold text-cyan-900 mt-1">{stats.jobs_posted}</p>
-                    </Card>
-                    <Card className="bg-white border-slate-100 p-4 flex flex-col items-center justify-center text-center">
-                        <p className="text-sm text-slate-500 font-medium">Applications</p>
-                        <p className="text-2xl font-bold text-slate-900 mt-1">1,240</p>
-                    </Card>
-                    <Card className="bg-white border-slate-100 p-4 flex flex-col items-center justify-center text-center">
-                        <p className="text-sm text-slate-500 font-medium">Interviews</p>
-                        <p className="text-2xl font-bold text-slate-900 mt-1">45</p>
-                    </Card>
-                    <Card className="bg-white border-slate-100 p-4 flex flex-col items-center justify-center text-center">
-                        <p className="text-sm text-slate-500 font-medium">Placed</p>
-                        <p className="text-2xl font-bold text-green-600 mt-1">12</p>
-                    </Card>
-                </div>
-            </div>
         </div>
     );
 }
-
-
