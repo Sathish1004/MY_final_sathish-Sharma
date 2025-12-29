@@ -75,13 +75,13 @@ export default function Navbar({ onLoginClick }: NavbarProps) {
                     </div>
 
                     {/* Other Links */}
-                    {['Pricing', 'Blog', 'Contact Us'].map((item) => (
+                    {['Pricing', 'Blog', 'About Prolync', 'Contact Us'].map((item) => (
                         <a
                             key={item}
-                            href={item === 'Pricing' ? '/pricing' : item === 'Blog' ? '/blog' : item === 'Contact Us' ? '/contact' : '#'}
+                            href={item === 'Pricing' ? '/pricing' : item === 'Blog' ? '/blog' : item === 'About Prolync' ? '/about-prolync' : item === 'Contact Us' ? '/contact' : '#'}
                             onClick={(e) => {
                                 e.preventDefault();
-                                const path = item === 'Pricing' ? '/pricing' : item === 'Blog' ? '/blog' : '/contact';
+                                const path = item === 'Pricing' ? '/pricing' : item === 'Blog' ? '/blog' : item === 'About Prolync' ? '/about-prolync' : '/contact';
                                 navigate(path);
                             }}
                             className="relative text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors py-2 group"
@@ -93,11 +93,7 @@ export default function Navbar({ onLoginClick }: NavbarProps) {
 
                 {/* 3. Auth Section (Far Right) & Mobile Toggle */}
                 <div className="flex items-center gap-4">
-                    {/* Notification Bell */}
-                    <button className="relative p-2 text-slate-600 hover:text-blue-600 transition-colors rounded-full hover:bg-slate-50">
-                        <Bell className="h-5 w-5" />
-                        <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
-                    </button>
+
 
                     <div className="hidden md:flex items-center gap-4">
                         {!user ? (
@@ -168,14 +164,14 @@ export default function Navbar({ onLoginClick }: NavbarProps) {
                         </div>
                     </div>
 
-                    {['Pricing', 'Blog', 'Contact Us'].map((item) => (
+                    {['Pricing', 'Blog', 'About Prolync', 'Contact Us'].map((item) => (
                         <a
                             key={item}
                             href="#"
                             onClick={(e) => {
                                 e.preventDefault();
                                 setMobileMenuOpen(false);
-                                const path = item === 'Pricing' ? '/pricing' : item === 'Blog' ? '/blog' : '/contact';
+                                const path = item === 'Pricing' ? '/pricing' : item === 'Blog' ? '/blog' : item === 'About Prolync' ? '/about-prolync' : '/contact';
                                 navigate(path);
                             }}
                             className="text-base font-medium text-slate-600 hover:text-blue-600 px-2 py-1"

@@ -36,6 +36,7 @@ export const createJob = async (req, res) => {
         const {
             job_title, company_name, job_type, work_mode, location,
             salary_package, required_skills, job_description,
+            responsibilities, eligibility,
             application_deadline, application_link, status
         } = req.body;
 
@@ -43,11 +44,13 @@ export const createJob = async (req, res) => {
             `INSERT INTO jobs (
                 job_title, company_name, job_type, work_mode, location,
                 salary_package, required_skills, job_description,
+                responsibilities, eligibility,
                 application_deadline, application_link, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 job_title, company_name, job_type, work_mode, location,
                 salary_package, required_skills, job_description,
+                responsibilities, eligibility,
                 application_deadline, application_link, status || 'Active'
             ]
         );
@@ -71,6 +74,7 @@ export const updateJob = async (req, res) => {
         const {
             job_title, company_name, job_type, work_mode, location,
             salary_package, required_skills, job_description,
+            responsibilities, eligibility,
             application_deadline, application_link, status
         } = req.body;
 
@@ -78,12 +82,13 @@ export const updateJob = async (req, res) => {
             `UPDATE jobs SET
                 job_title = ?, company_name = ?, job_type = ?, work_mode = ?,
                 location = ?, salary_package = ?, required_skills = ?,
-                job_description = ?, application_deadline = ?,
-                application_link = ?, status = ?
+                job_description = ?, responsibilities = ?, eligibility = ?,
+                application_deadline = ?, application_link = ?, status = ?
             WHERE job_id = ?`,
             [
                 job_title, company_name, job_type, work_mode, location,
                 salary_package, required_skills, job_description,
+                responsibilities, eligibility,
                 application_deadline, application_link, status,
                 id
             ]

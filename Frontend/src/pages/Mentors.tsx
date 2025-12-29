@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNotifications } from '@/contexts/NotificationContext';
 import {
   Search,
   Star,
@@ -114,6 +115,7 @@ export default function Mentors() {
   const [bookingNotes, setBookingNotes] = useState('');
   const { toast } = useToast();
   const { user } = useAuth();
+  const { addNotification } = useNotifications();
 
   // Auto-fill form if user is logged in
   useState(() => {
@@ -148,10 +150,12 @@ export default function Mentors() {
       })
         .then(async (response) => {
           if (response.ok) {
-            toast({
-              title: 'Session Booked!',
-              description: `Your session with ${selectedMentor?.name} has been booked for ${selectedSlot}`,
+            addNotification({
+              title: 'Mentor Session Confirmed',
+              description: `You have successfully registered for a session with ${selectedMentor?.name} at ${selectedSlot}.`,
+              type: 'success',
             });
+
             setSelectedMentor(null);
             setSelectedSlot('');
             setBookingNotes('');

@@ -423,12 +423,7 @@ export default function Placements() {
                             Complete guide to crack your dream job interview
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="px-3 py-1 text-sm font-medium">
-                            <CheckCircle2 className="h-4 w-4 mr-1 text-emerald-500" />
-                            Updated for 2025
-                        </Badge>
-                    </div>
+
                 </div>
 
                 <Tabs defaultValue="all" className="w-full">

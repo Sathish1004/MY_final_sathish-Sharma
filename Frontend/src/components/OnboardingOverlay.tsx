@@ -77,8 +77,6 @@ export default function OnboardingOverlay() {
     const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
     const [isAnimating, setIsAnimating] = useState(false);
     const [isVisible, setIsVisible] = useState(true);
-    const [stage, setStage] = useState<'center' | 'target'>('center');
-
     const mountedRef = useRef(true);
 
     // Initial load
@@ -87,31 +85,15 @@ export default function OnboardingOverlay() {
     }, []);
 
     const updatePosition = () => {
-        if (stage === 'center') {
-            setPosition({
-                top: window.innerHeight / 2,
-                left: window.innerWidth / 2,
-            });
-            return;
-        }
-
         const step = TOUR_STEPS[currentStep];
         const element = document.getElementById(step.targetId);
 
         if (element) {
             const rect = element.getBoundingClientRect();
-
             // WhatsApp style: Right of sidebar
             const left = rect.right + 15;
             const top = rect.top + (rect.height / 2); // vertically centered to item
-
             setPosition({ top, left });
-        } else {
-            // Fallback center
-            setPosition({
-                top: window.innerHeight / 2,
-                left: window.innerWidth / 2,
-            });
         }
     };
 
@@ -120,7 +102,7 @@ export default function OnboardingOverlay() {
         updatePosition();
         window.addEventListener('resize', updatePosition);
         return () => window.removeEventListener('resize', updatePosition);
-    }, [currentStep, stage]);
+    }, [currentStep]);
 
     // Handle highlighting (Side Effects on DOM)
     useEffect(() => {
@@ -134,7 +116,7 @@ export default function OnboardingOverlay() {
             (el as HTMLElement).style.pointerEvents = '';
         });
 
-        if (isVisible && stage === 'target') {
+        if (isVisible) {
             const step = TOUR_STEPS[currentStep];
             const element = document.getElementById(step.targetId);
 
@@ -165,45 +147,27 @@ export default function OnboardingOverlay() {
                 element.style.pointerEvents = '';
             }
         };
-    }, [currentStep, isVisible, stage]);
+    }, [currentStep, isVisible]);
 
     // Initial Trigger
     useEffect(() => {
-        // Start center
-        setStage('center');
         updatePosition();
-
-        // Move to first target after delay
-        const timer = setTimeout(() => {
-            if (mountedRef.current) {
-                setStage('target');
-            }
-        }, 800);
+        // Check again after a short delay to ensure layout is ready
+        const timer = setTimeout(updatePosition, 100);
         return () => clearTimeout(timer);
     }, []);
 
     const handleNext = () => {
         if (currentStep < TOUR_STEPS.length - 1) {
             setIsAnimating(true);
+            setCurrentStep(prev => prev + 1);
 
-            // 1. Move back to center
-            setStage('center');
-
-            // 2. Wait for move to complete, then change content and move to next target
+            // Give a tiny moment for animation state
             setTimeout(() => {
                 if (mountedRef.current) {
-                    setCurrentStep(prev => prev + 1);
-
-                    // Small pause at center to read/register (optional, keeps it smooth)
-                    setTimeout(() => {
-                        if (mountedRef.current) {
-                            setStage('target');
-                            setIsAnimating(false);
-                        }
-                    }, 600); // Wait at center
+                    setIsAnimating(false);
                 }
-            }, 600); // Travel time to center
-
+            }, 300);
         } else {
             finishTour();
         }
@@ -212,20 +176,13 @@ export default function OnboardingOverlay() {
     const handleBack = () => {
         if (currentStep > 0) {
             setIsAnimating(true);
-            // Same animation for back: Center -> Prev Target
-            setStage('center');
+            setCurrentStep(prev => prev - 1);
 
             setTimeout(() => {
                 if (mountedRef.current) {
-                    setCurrentStep(prev => prev - 1);
-                    setTimeout(() => {
-                        if (mountedRef.current) {
-                            setStage('target');
-                            setIsAnimating(false);
-                        }
-                    }, 600);
+                    setIsAnimating(false);
                 }
-            }, 600);
+            }, 300);
         }
     };
 
@@ -263,31 +220,25 @@ export default function OnboardingOverlay() {
                 <div
                     className={cn(
                         "fixed z-[100] transition-all duration-700 ease-[cubic-bezier(0.25,0.1,0.25,1)]", // smooth ease
-                        isAnimating ? "scale-95 opacity-80" : "scale-100 opacity-100" // subtle breathe effect
+                        isAnimating ? "scale-98 opacity-90" : "scale-100 opacity-100"
                     )}
                     style={{
                         top: position.top,
                         left: position.left,
-                        transform: 'translateY(-50%)' // Center vertically relative to top coordinate (which is center of item)
+                        transform: 'translateY(-50%)'
                     }}
                 >
-                    <div className={cn("flex items-center", stage === 'center' ? "justify-center" : "")}>
+                    <div className="flex items-center">
 
-                        {/* Animated Arrow - Only show when at target */}
-                        {stage === 'target' && (
-                            <div className="mr-[-1px] z-10 animate-pulse-horizontal text-blue-500 drop-shadow-sm transition-opacity duration-300">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-blue-500 fill-current">
-                                    <path d="M24 0l-24 12 24 12v-24z" />
-                                </svg>
-                            </div>
-                        )}
+                        {/* Animated Arrow - Fixed to left side */}
+                        <div className="mr-[-1px] z-10 animate-pulse-horizontal text-blue-500 drop-shadow-sm transition-opacity duration-300">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-blue-500 fill-current">
+                                <path d="M24 0l-24 12 24 12v-24z" />
+                            </svg>
+                        </div>
 
                         {/* WhatsApp Style Card */}
-                        <div className={cn(
-                            "bg-white text-[#075e54] w-[380px] rounded-lg shadow-xl border border-[#25D366]/20 relative overflow-hidden transition-all duration-500",
-                            // In center mode, maybe slightly larger or more prominent?
-                            stage === 'center' ? "shadow-2xl scale-105" : ""
-                        )}>
+                        <div className="bg-white text-[#075e54] w-[380px] rounded-lg shadow-xl border border-[#25D366]/20 relative overflow-hidden transition-all duration-500">
                             {/* Green Top Bar */}
                             <div className="h-1 w-full bg-[#25D366]" />
 

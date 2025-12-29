@@ -47,6 +47,7 @@ import {
 import { NavLink } from '@/components/NavLink';
 import { cn } from '@/lib/utils';
 import OnboardingOverlay from "../OnboardingOverlay";
+import { NotificationCenter } from "../NotificationCenter";
 
 const navItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
@@ -203,12 +204,7 @@ export default function DashboardLayout() {
           <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-40 flex items-center px-4 gap-4">
             <SidebarTrigger />
             <div className="flex-1" />
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[10px] font-medium text-primary-foreground flex items-center justify-center">
-                3
-              </span>
-            </Button>
+            <NotificationCenter />
           </header>
 
           {/* Page content */}

@@ -37,86 +37,99 @@ const FeatureWheel = () => {
         { icon: Award, label: "Certificates", color: "text-rose-500", bg: "bg-rose-50", iconBg: "bg-rose-500", angle: 270 }, // Top
     ];
 
-    // Radius of the circle
-    const radius = 220; // Increased radius for spacing
+    // Radius of the circle - now responsive
+    const [radius, setRadius] = useState(220);
+
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth < 768) {
+                setRadius(160);
+            } else {
+                setRadius(220);
+            }
+        };
+
+        handleResize();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     return (
-        <div className="relative w-full h-[350px] md:h-[600px] flex items-center justify-center overflow-hidden">
+        <div className="relative w-full h-full flex items-center justify-center overflow-visible">
 
             {/* Background Grid Pattern (Subtle) */}
-            <div className="absolute inset-0 z-0 bg-transparent opacity-30"
-                style={{ backgroundImage: 'radial-gradient(circle, #cbd5e1 1px, transparent 1px)', backgroundSize: '30px 30px' }}>
+            <div className="absolute inset-0 z-0 bg-transparent opacity-20"
+                style={{ backgroundImage: 'radial-gradient(circle, #cbd5e1 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
             </div>
 
-            {/* Central Hub with Premium Booking CTA */}
+            {/* Premium Centerpiece: Unified Login Message */}
             <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-                className="absolute z-20 flex items-center justify-center perspective-[1000px]"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 1, ease: "easeOut" }}
+                className="absolute z-20 flex flex-col items-center justify-center text-center px-4 w-full max-w-[240px] md:max-w-md"
             >
-                <motion.button
-                    onClick={() => navigate('/pricing')}
+                <motion.div
                     animate={{
-                        rotateX: [0, 10, 0, -5, 0], // Gentle top-tilt loop
-                        y: [0, -4, 0, -2, 0] // Subtle float
+                        scale: [1, 1.02, 1],
                     }}
                     transition={{
-                        duration: 6,
+                        duration: 4,
                         repeat: Infinity,
                         ease: "easeInOut"
                     }}
-                    whileHover={{ scale: 1.05, rotateX: 0, y: 0 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="relative group cursor-pointer"
+                    className="relative"
                 >
-                    {/* Glow Effect (Pulsing) */}
-                    <div className={`absolute inset-0 rounded-full blur-xl transition-all duration-1000 group-hover:bg-opacity-70
-                        ${showAltText ? 'bg-emerald-500/40' : 'bg-blue-500/40'}
-                    `} />
+                    {/* Background Soft Glow - Animating Colors */}
+                    <motion.div
+                        animate={{
+                            backgroundColor: ['rgba(37, 99, 235, 0.05)', 'rgba(124, 58, 237, 0.05)', 'rgba(6, 182, 212, 0.05)', 'rgba(37, 99, 235, 0.05)'],
+                            filter: ['blur(30px)', 'blur(50px)', 'blur(30px)'],
+                        }}
+                        transition={{ duration: 8, repeat: Infinity }}
+                        className="absolute inset-x-[-30px] inset-y-[-15px] rounded-full z-0"
+                    />
 
-                    {/* Button Shape */}
-                    <div className={`relative px-8 py-4 rounded-full shadow-lg border border-white/20 overflow-hidden min-w-[200px] flex items-center justify-center transition-all duration-1000
-                        ${showAltText
-                            ? 'bg-gradient-to-r from-emerald-500 to-teal-400 shadow-emerald-500/30'
-                            : 'bg-gradient-to-r from-blue-600 to-cyan-500 shadow-blue-500/30'}
-                    `}>
+                    <div className="relative z-10 space-y-1 md:space-y-2">
+                        <motion.h3
+                            className="text-lg md:text-3xl lg:text-4xl font-black tracking-tighter text-slate-900 leading-[1.1]"
+                            animate={{
+                                backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
+                            }}
+                            transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
+                            style={{
+                                background: 'linear-gradient(to right, #1e293b, #3b82f6, #8b5cf6, #1e293b)',
+                                backgroundSize: '300% auto',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                            }}
+                        >
+                            One Unified Login.
+                        </motion.h3>
+                        <p className="text-[9px] md:text-sm lg:text-lg font-bold text-slate-500 tracking-tight leading-none">
+                            Your Entire Professional Ecosystem.
+                        </p>
 
-                        {/* Shimmer/Sheen Effect */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 translate-x-[-200%] animate-shimmer" />
-
-                        {/* Animated Text Content */}
-                        <AnimatePresence mode='wait'>
-                            {!showAltText ? (
-                                <motion.span
-                                    key="premium"
-                                    initial={{ opacity: 0, y: 15 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -15 }}
-                                    transition={{ duration: 0.4 }}
-                                    className="font-bold text-white text-lg tracking-wide whitespace-nowrap"
-                                >
-                                    Premium Booking
-                                </motion.span>
-                            ) : (
-                                <motion.span
-                                    key="booksoon"
-                                    initial={{ opacity: 0, y: 15 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -15 }}
-                                    transition={{ duration: 0.4 }}
-                                    className="font-bold text-white text-lg tracking-wide whitespace-nowrap"
-                                >
-                                    Book Soon
-                                </motion.span>
-                            )}
-                        </AnimatePresence>
+                        {/* Decorative Dot Line */}
+                        <div className="flex items-center justify-center gap-1 md:gap-1.5 pt-1 md:pt-2">
+                            {[1, 2, 3].map((i) => (
+                                <motion.div
+                                    key={i}
+                                    animate={{
+                                        opacity: [0.3, 1, 0.3],
+                                        scale: [1, 1.2, 1]
+                                    }}
+                                    transition={{ duration: 2, repeat: Infinity, delay: i * 0.3 }}
+                                    className={`h-1 w-1 md:h-1.5 md:w-1.5 rounded-full ${i === 1 ? 'bg-blue-500' : i === 2 ? 'bg-purple-500' : 'bg-cyan-500'}`}
+                                />
+                            ))}
+                        </div>
                     </div>
-                </motion.button>
+                </motion.div>
             </motion.div>
 
             {/* Orbiting Features */}
-            <div className="relative w-[500px] h-[500px] z-10 flex items-center justify-center scale-[0.45] sm:scale-[0.6] md:scale-100 transition-transform duration-300">
+            <div className="relative w-full h-full z-10 flex items-center justify-center scale-[0.6] sm:scale-[0.7] md:scale-[0.8] lg:scale-100 transition-all duration-500">
                 {features.map((item, index) => {
                     const angleRad = (item.angle * Math.PI) / 180;
                     const x = Math.cos(angleRad) * radius;
@@ -129,7 +142,7 @@ const FeatureWheel = () => {
                             animate={{ opacity: 1, scale: 1, x: x, y: y }}
                             transition={{
                                 duration: 0.6,
-                                delay: index * 0.1,
+                                delay: index * 0.05,
                                 type: "spring", stiffness: 100
                             }}
                             className="absolute flex flex-col items-center justify-center p-4 bg-white rounded-[2rem] shadow-[0_10px_30px_rgba(0,0,0,0.08)] hover:shadow-[0_15px_40px_rgba(0,0,0,0.12)] transition-shadow cursor-default w-28 h-28"

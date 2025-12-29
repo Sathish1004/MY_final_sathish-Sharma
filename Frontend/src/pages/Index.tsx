@@ -59,29 +59,29 @@ export default function Index() {
         <SaaSBackground />
 
         {/* Hero Section */}
-        <section className="relative overflow-hidden pt-16 pb-12 lg:pt-40 lg:pb-32">
+        <section className="relative overflow-hidden pt-24 pb-12 lg:pt-40 lg:pb-32">
           {/* Background - Clean gradient REMOVED for SaaS Background */}
 
           <div className="max-w-[1700px] mx-auto px-4 md:px-8">
             <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
 
               {/* Left Content */}
-              <div className="flex flex-col items-center lg:items-start text-center lg:text-left order-2 lg:order-1 max-w-2xl lg:max-w-none mx-auto lg:mx-0 mt-10 md:mt-16">
+              <div className="flex flex-col items-center lg:items-start text-center lg:text-left order-1 lg:order-1 max-w-2xl lg:max-w-none mx-auto lg:mx-0 mt-0 lg:mt-16">
 
-                <h1 className="text-4xl md:text-5xl lg:text-[4.5rem] font-bold tracking-tight text-slate-900 mb-6 leading-[1.15] lg:leading-[1.1] drop-shadow-sm flex flex-col gap-2">
+                <h1 className="text-4xl md:text-5xl lg:text-[4.5rem] font-bold tracking-tight text-slate-900 mb-4 md:mb-6 leading-[1.15] lg:leading-[1.1] drop-shadow-sm flex flex-col gap-1 md:gap-2">
                   <span className="block">Scale Your Learning.</span>
 
                   {/* Static Blue Gradient Text */}
-                  <span className="block bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent pb-2">
+                  <span className="block bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent pb-1 md:pb-2">
                     Power the Enterprise.
                   </span>
                 </h1>
 
-                <p className="text-lg md:text-xl text-slate-600 mb-8 md:mb-10 leading-relaxed max-w-xl lg:max-w-full font-medium">
+                <p className="text-lg md:text-xl text-slate-600 mb-4 md:mb-10 leading-relaxed max-w-xl lg:max-w-full font-medium">
                   Get free access to learning tools, coding platforms, and career opportunities using Prolync Student Workspace.
                 </p>
 
-                <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto mb-10">
+                <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto mb-4 md:mb-10">
                   <Button
                     size="lg"
                     className="w-full sm:w-auto bg-blue-600 text-white hover:bg-blue-500 h-12 px-8 text-lg font-semibold rounded-lg shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:shadow-[0_0_30px_rgba(37,99,235,0.5)] transition-all hover:-translate-y-0.5 border border-blue-400/30"
@@ -107,7 +107,7 @@ export default function Index() {
               </div>
 
               {/* Right Visual (New Feature Wheel) */}
-              <div className="relative w-full lg:h-[600px] flex items-center justify-center order-1 lg:order-2">
+              <div className="relative w-full h-[320px] sm:h-[500px] lg:h-[600px] flex items-center justify-center order-2 lg:order-2 mt-0 lg:mt-0">
                 <FeatureWheel />
               </div>
             </div>
@@ -172,14 +172,10 @@ export default function Index() {
           </h2>
         </div>
       </section>
-
       {/* Footer */}
       <Footer />
-
       {/* AI Chatbot */}
       <Chatbot />
-
-
     </div>
   );
 }

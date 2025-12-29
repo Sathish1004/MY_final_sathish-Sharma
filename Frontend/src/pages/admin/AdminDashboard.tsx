@@ -122,6 +122,8 @@ interface Job {
     status: 'Active' | 'Closed';
     applicants: number;
     description: string;
+    responsibilities?: string;
+    eligibility?: string;
     applyLink: string;
     postedDate: string;
     // Helper property for mapping
@@ -133,6 +135,8 @@ interface Job {
     salary_package?: string;
     required_skills?: string;
     job_description?: string;
+    responsibilities_db?: string; // naming to avoid collision if needed
+    eligibility_db?: string;
     application_deadline?: string;
     application_link?: string;
     created_at?: string;
@@ -734,6 +738,8 @@ function JobsManagement() {
                     status: j.status,
                     applicants: 0, // Not in DB yet
                     description: j.job_description,
+                    responsibilities: j.responsibilities,
+                    eligibility: j.eligibility,
                     applyLink: j.application_link,
                     postedDate: new Date(j.created_at).toLocaleDateString()
                 }));
@@ -798,6 +804,8 @@ function JobsManagement() {
                 salary_package: formData.package,
                 required_skills: formData.skills,
                 job_description: formData.description,
+                responsibilities: formData.responsibilities,
+                eligibility: formData.eligibility,
                 application_deadline: formData.deadline,
                 application_link: formData.applyLink,
                 status: formData.status
@@ -1029,7 +1037,17 @@ function JobsManagement() {
 
                             <div className="space-y-2">
                                 <Label>Job Description</Label>
-                                <Textarea value={formData.description || ''} onChange={e => setFormData({ ...formData, description: e.target.value })} className="h-32" placeholder="Enter detailed job description..." />
+                                <Textarea value={formData.description || ''} onChange={e => setFormData({ ...formData, description: e.target.value })} className="h-24" placeholder="Enter detailed job description..." />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Key Responsibilities (One per line)</Label>
+                                <Textarea value={formData.responsibilities || ''} onChange={e => setFormData({ ...formData, responsibilities: e.target.value })} className="h-24" placeholder="e.g. Design UI components&#10;Develop backend APIs" />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Eligibility Criteria (One per line)</Label>
+                                <Textarea value={formData.eligibility || ''} onChange={e => setFormData({ ...formData, eligibility: e.target.value })} className="h-24" placeholder="e.g. B.Tech in CS&#10;GPA > 7.5" />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
@@ -1115,6 +1133,28 @@ function JobsManagement() {
                                     {selectedJob.description}
                                 </p>
                             </div>
+
+                            {selectedJob.responsibilities && (
+                                <div className="space-y-2">
+                                    <h4 className="font-semibold text-slate-900">Responsibilities</h4>
+                                    <ul className="list-disc pl-5 text-sm text-slate-600 space-y-1">
+                                        {selectedJob.responsibilities.split('\n').filter(r => r.trim()).map((r, i) => (
+                                            <li key={i}>{r}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {selectedJob.eligibility && (
+                                <div className="space-y-2">
+                                    <h4 className="font-semibold text-slate-900">Eligibility</h4>
+                                    <ul className="list-disc pl-5 text-sm text-slate-600 space-y-1">
+                                        {selectedJob.eligibility.split('\n').filter(e => e.trim()).map((e, i) => (
+                                            <li key={i}>{e}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
 
                             <div className="space-y-2">
                                 <h4 className="font-semibold text-slate-900">Skills Required</h4>

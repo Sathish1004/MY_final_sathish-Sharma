@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { useNotifications } from '@/contexts/NotificationContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import {
@@ -18,7 +19,8 @@ import {
   Home,
   FileText,
   CheckCircle2,
-  Calendar
+  Calendar,
+  Code
 } from 'lucide-react';
 
 // Empty initial state, will fetch from API
@@ -42,6 +44,7 @@ export default function Jobs() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [savedJobs, setSavedJobs] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { addNotification } = useNotifications();
 
   // Helper to format date diff
   const getPostedTime = (dateStr: string) => {
@@ -83,10 +86,9 @@ export default function Jobs() {
             logo: j.company_name.substring(0, 2).toUpperCase(),
             skills: j.required_skills ? j.required_skills.split(',').map((s: string) => s.trim()) : [],
             description: j.job_description,
-            roles: [], // Not available in DB
-            eligibility: [], // Not available in DB
+            roles: j.responsibilities ? j.responsibilities.split('\n').filter((r: string) => r.trim() !== '') : [],
+            eligibility: j.eligibility ? j.eligibility.split('\n').filter((e: string) => e.trim() !== '') : [],
             applyUrl: j.application_link,
-            duration: 'N/A',
             status: j.status
           }));
           setJobs(mappedJobs);
@@ -116,8 +118,13 @@ export default function Jobs() {
     );
   };
 
-  const handleRegister = (url: string) => {
-    window.open(url, '_blank');
+  const handleRegister = (job: any) => {
+    window.open(job.applyUrl, '_blank');
+    addNotification({
+      title: 'Job Registration Started',
+      description: `You have initiated the application for ${job.title} at ${job.company}. Check the external link to complete your registration.`,
+      type: 'success',
+    });
   };
 
   return (
@@ -288,86 +295,110 @@ export default function Jobs() {
                             <div className="p-6 pt-2 space-y-6">
 
                               {/* Stats */}
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/30 rounded-lg">
-                                <div>
-                                  <p className="text-xs text-muted-foreground uppercase font-bold">Posted</p>
-                                  <p className="text-sm font-medium">{job.posted}</p>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-5 bg-primary/5 rounded-xl border border-primary/10">
+                                <div className="space-y-1">
+                                  <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Posted</p>
+                                  <p className="text-sm font-semibold text-foreground">{job.posted}</p>
                                 </div>
-                                <div>
-                                  <p className="text-xs text-muted-foreground uppercase font-bold">Deadline</p>
-                                  <p className={`text-sm font-medium ${isExpired(job.deadline) ? 'text-red-500 font-bold' : ''}`}>
+                                <div className="space-y-1">
+                                  <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Deadline</p>
+                                  <p className={`text-sm font-semibold ${isExpired(job.deadline) ? 'text-red-500' : 'text-foreground'}`}>
                                     {new Date(job.deadline).toLocaleDateString()}
-                                    {isExpired(job.deadline) && <span className="ml-1">(Job has closed)</span>}
                                   </p>
                                 </div>
-                                {job.duration && (
-                                  <div>
-                                    <p className="text-xs text-muted-foreground uppercase font-bold">Duration</p>
-                                    <p className="text-sm font-medium">{job.duration}</p>
+                                <div className="space-y-1">
+                                  <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Eligibility</p>
+                                  <p className="text-sm font-semibold text-foreground">{job.isInternship ? 'Students' : 'All Candidates'}</p>
+                                </div>
+                              </div>
+
+                              {/* Job Details Content Area with Scrollbar */}
+                              <div className="space-y-8 pr-2 max-h-[440px] overflow-y-auto custom-scrollbar">
+                                {/* Job Description */}
+                                <section className="space-y-3">
+                                  <div className="flex items-center gap-2 pb-2 border-b border-border/50">
+                                    <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-500">
+                                      <FileText className="h-4 w-4" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-foreground tracking-tight">Job Description</h3>
                                   </div>
-                                )}
-                                <div>
-                                  <p className="text-xs text-muted-foreground uppercase font-bold">Eligibility</p>
-                                  <p className="text-sm font-medium">{job.isInternship ? 'Students' : 'Generals'}</p>
-                                </div>
-                              </div>
+                                  <p className="text-muted-foreground leading-relaxed text-sm">
+                                    {job.description || "No description provided."}
+                                  </p>
+                                </section>
 
-                              {/* Description */}
-                              <div>
-                                <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
-                                  <FileText className="h-5 w-5 text-primary" />
-                                  Job Description
-                                </h3>
-                                <p className="text-muted-foreground leading-relaxed">
-                                  {job.description}
-                                </p>
-                              </div>
+                                {/* Key Responsibilities */}
+                                <section className="space-y-3">
+                                  <div className="flex items-center gap-2 pb-2 border-b border-border/50">
+                                    <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500">
+                                      <Briefcase className="h-4 w-4" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-foreground tracking-tight">Key Responsibilities</h3>
+                                  </div>
+                                  <ul className="grid gap-3">
+                                    {job.roles && job.roles.length > 0 ? (
+                                      job.roles.map((role: string, i: number) => (
+                                        <li key={i} className="flex items-start gap-3 p-3 rounded-lg bg-muted/30 group hover:bg-muted/50 transition-colors border border-transparent hover:border-border/50">
+                                          <div className="h-5 w-5 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 mt-0.5">
+                                            <CheckCircle2 className="h-3 w-3" />
+                                          </div>
+                                          <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{role}</span>
+                                        </li>
+                                      ))
+                                    ) : (
+                                      <li className="text-sm text-muted-foreground italic p-3 rounded-lg bg-muted/30 border border-dashed border-border">
+                                        Not specified for this role.
+                                      </li>
+                                    )}
+                                  </ul>
+                                </section>
 
-                              {/* Roles */}
-                              <div>
-                                <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
-                                  <Briefcase className="h-5 w-5 text-primary" />
-                                  Key Responsibilities
-                                </h3>
-                                <ul className="space-y-2">
-                                  {job.roles?.map((role, i) => (
-                                    <li key={i} className="flex items-start gap-2 text-muted-foreground">
-                                      <div className="h-1.5 w-1.5 rounded-full bg-primary mt-2 shrink-0" />
-                                      {role}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
+                                {/* Eligibility Criteria */}
+                                <section className="space-y-3">
+                                  <div className="flex items-center gap-2 pb-2 border-b border-border/50">
+                                    <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-500">
+                                      <CheckCircle2 className="h-4 w-4" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-foreground tracking-tight">Eligibility Criteria</h3>
+                                  </div>
+                                  <ul className="grid gap-3">
+                                    {job.eligibility && job.eligibility.length > 0 ? (
+                                      job.eligibility.map((item: string, i: number) => (
+                                        <li key={i} className="flex items-start gap-3 p-3 rounded-lg bg-muted/30 group hover:bg-muted/50 transition-colors border border-transparent hover:border-border/50">
+                                          <div className="h-5 w-5 rounded-full bg-purple-500/10 text-purple-500 flex items-center justify-center shrink-0 mt-0.5">
+                                            <div className="h-1.5 w-1.5 rounded-full bg-purple-500" />
+                                          </div>
+                                          <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{item}</span>
+                                        </li>
+                                      ))
+                                    ) : (
+                                      <li className="text-sm text-muted-foreground italic p-3 rounded-lg bg-muted/30 border border-dashed border-border">
+                                        General eligibility applies.
+                                      </li>
+                                    )}
+                                  </ul>
+                                </section>
 
-                              {/* Eligibility */}
-                              <div>
-                                <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
-                                  <CheckCircle2 className="h-5 w-5 text-primary" />
-                                  Eligibility Criteria
-                                </h3>
-                                <ul className="space-y-2">
-                                  {job.eligibility?.map((item, i) => (
-                                    <li key={i} className="flex items-start gap-2 text-muted-foreground">
-                                      <div className="h-1.5 w-1.5 rounded-full bg-primary mt-2 shrink-0" />
-                                      {item}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-
-                              {/* Skills */}
-                              <div>
-                                <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
-                                  <Building2 className="h-5 w-5 text-primary" />
-                                  Required Skills
-                                </h3>
-                                <div className="flex flex-wrap gap-2">
-                                  {job.skills.map(skill => (
-                                    <Badge key={skill} variant="outline" className="px-3 py-1 text-sm">
-                                      {skill}
-                                    </Badge>
-                                  ))}
-                                </div>
+                                {/* Required Skills */}
+                                <section className="space-y-4">
+                                  <div className="flex items-center gap-2 pb-2 border-b border-border/50">
+                                    <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500">
+                                      <Code className="h-4 w-4" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-foreground tracking-tight">Required Skills</h3>
+                                  </div>
+                                  <div className="flex flex-wrap gap-2">
+                                    {job.skills && job.skills.length > 0 ? (
+                                      job.skills.map((skill: string) => (
+                                        <Badge key={skill} variant="outline" className="px-4 py-1.5 text-xs font-semibold bg-background hover:bg-amber-500/5 hover:text-amber-500 hover:border-amber-500/30 transition-all border-border">
+                                          {skill}
+                                        </Badge>
+                                      ))
+                                    ) : (
+                                      <span className="text-sm text-muted-foreground italic">No specific skills mentioned.</span>
+                                    )}
+                                  </div>
+                                </section>
                               </div>
 
                             </div>
@@ -378,7 +409,7 @@ export default function Jobs() {
                             <Button
                               size="lg"
                               className="w-full text-lg shadow-lg hover:shadow-xl transition-all"
-                              onClick={() => handleRegister(job.applyUrl)}
+                              onClick={() => handleRegister(job)}
                               disabled={job.status === 'Closed' || isExpired(job.deadline)}
                             >
                               {job.status === 'Closed' || isExpired(job.deadline) ? 'Job Closed' : 'Register Now'}
@@ -405,6 +436,22 @@ export default function Jobs() {
           )
         }
       </div>
+
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #e2e8f0;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #cbd5e1;
+        }
+      `}</style>
     </FeatureGuard>
   );
 }

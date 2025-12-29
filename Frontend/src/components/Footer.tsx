@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import {
     GraduationCap,
     ArrowRight,
@@ -23,11 +24,11 @@ const Footer = () => {
 
                     {/* Left Section: Logo & Brand Information */}
                     <div className="lg:col-span-4 space-y-8">
-                        <div className="inline-flex items-center justify-center bg-white rounded-2xl p-4 md:p-5 shadow-2xl shadow-black/40 border border-white/10 mb-2">
+                        <div className="inline-flex items-center justify-center bg-white rounded-2xl p-2.5 md:p-3 shadow-2xl shadow-black/40 border border-white/10 mb-2">
                             <img
                                 src="/prolync_logo.png"
                                 alt="Prolync Logo"
-                                className="h-10 md:h-12 w-auto object-contain"
+                                className="h-10 md:h-8 w-auto object-contain"
                                 onError={(e) => {
                                     (e.target as HTMLImageElement).src = "/logo.png"; // Fallback
                                 }}
@@ -81,17 +82,23 @@ const Footer = () => {
                         </h3>
                         <ul className="grid gap-4">
                             {[
-                                "About Prolync",
-                                "Privacy Policy",
-                                "Terms of Use",
-                                "Refund Policy",
-                                "Support & FAQs",
-                                "Contact Support"
+                                { label: "About Prolync", href: "/about-prolync" },
+                                { label: "Privacy Policy", href: "/privacy-policy" },
+                                { label: "Terms of Use", href: "/terms-of-use" },
+                                { label: "Refund Policy", href: "/refund-policy" },
+                                { label: "Support & FAQs", href: "/support" },
+                                { label: "Contact Support", href: "/contact-support" }
                             ].map((item, i) => (
                                 <li key={i}>
-                                    <a href="#" className="text-slate-400 hover:text-white transition-all duration-300 text-[15px]">
-                                        {item}
-                                    </a>
+                                    <Link
+                                        to={item.href}
+                                        className={`transition-all duration-300 text-[15px] ${window.location.pathname === item.href
+                                            ? 'text-white font-bold'
+                                            : 'text-slate-400 hover:text-white'
+                                            }`}
+                                    >
+                                        {item.label}
+                                    </Link>
                                 </li>
                             ))}
                         </ul>
@@ -152,8 +159,8 @@ const Footer = () => {
                         © 2025 <span className="text-slate-400 font-semibold px-1">Prolyncinfotech Private Limited</span>. All rights reserved.
                     </p>
                     <div className="flex gap-8">
-                        <a href="#" className="hover:text-blue-400 transition-colors">Privacy Policy</a>
-                        <a href="#" className="hover:text-blue-400 transition-colors">Terms of Service</a>
+                        <Link to="/privacy-policy" className="hover:text-blue-400 transition-colors">Privacy Policy</Link>
+                        <Link to="/terms-of-use" className="hover:text-blue-400 transition-colors">Terms of Service</Link>
                         <a href="#" className="hover:text-blue-400 transition-colors">Cookies</a>
                     </div>
                 </div>
