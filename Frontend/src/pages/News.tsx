@@ -18,6 +18,8 @@ import { techNews as staticTechNews, examUpdates, NewsItem, ExamUpdateItem } fro
 
 import FeatureGuard from "@/components/FeatureGuard";
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 export default function News() {
   const [selectedArticle, setSelectedArticle] = useState<NewsItem | ExamUpdateItem | null>(null);
   const [newsArticles, setNewsArticles] = useState<NewsItem[]>(staticTechNews);
@@ -26,7 +28,7 @@ export default function News() {
     // ... (fetchNews logic)
     const fetchNews = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/news/public');
+        const response = await fetch(API_URL + '/api/news/public');
         if (response.ok) {
           const data = await response.json();
           // Map DB keys to frontend keys

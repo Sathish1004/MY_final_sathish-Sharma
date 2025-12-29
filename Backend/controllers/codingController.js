@@ -1,8 +1,7 @@
 import mysql from 'mysql2/promise';
 import axios from 'axios';
 
-const judge0Url = process.env.JUDGE0_API_URL || "https://judge0-ce.p.rapidapi.com";
-const judge0Key = process.env.JUDGE0_API_KEY; // Ensure this is in .env
+const PISTON_API_URL = "https://emkc.org/api/v2/piston/execute";
 const dbConfig = {
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
@@ -10,13 +9,13 @@ const dbConfig = {
     database: process.env.DB_NAME
 };
 
-// Map languages to Judge0 IDs
-const languageIds = {
-    python: 71, // Python (3.8.1)
-    javascript: 63, // JavaScript (Node.js 12.14.0)
-    java: 62, // Java (OpenJDK 13.0.1)
-    cpp: 54, // C++ (GCC 9.2.0)
-    c: 50 // C (GCC 9.2.0)
+// Map accessible languages to Piston versions (using common latest versions)
+const pistonLanguages = {
+    python: { language: "python", version: "3.10.0" },
+    javascript: { language: "javascript", version: "18.15.0" },
+    java: { language: "java", version: "15.0.2" },
+    cpp: { language: "c++", version: "10.2.0" },
+    c: { language: "c", version: "10.2.0" }
 };
 
 export const getQuestions = async (req, res) => {
@@ -25,7 +24,6 @@ export const getQuestions = async (req, res) => {
         const [rows] = await connection.execute('SELECT * FROM questions');
         await connection.end();
 
-        // Parse template_code if it's a string (though it should be JSON object from DB if supported, else string)
         const questions = rows.map(q => ({
             ...q,
             template_code: typeof q.template_code === 'string' ? JSON.parse(q.template_code) : q.template_code
@@ -41,124 +39,148 @@ export const getQuestions = async (req, res) => {
 export const runCode = async (req, res) => {
     const { code, language, input } = req.body;
 
-    if (!languageIds[language]) {
+    if (!pistonLanguages[language]) {
         return res.status(400).json({ error: 'Unsupported language' });
     }
 
     try {
-        const response = await axios.post(`${judge0Url}/submissions?base64_encoded=false&wait=true`, {
-            source_code: code,
-            language_id: languageIds[language],
-            stdin: input
-        }, {
-            headers: {
-                'X-RapidAPI-Key': judge0Key,
-                'X-RapidAPI-Host': 'judge0-ce.p.rapidapi.com'
-            }
-        });
+        const payload = {
+            language: pistonLanguages[language].language,
+            version: pistonLanguages[language].version,
+            files: [
+                {
+                    content: code
+                }
+            ],
+            stdin: input || ""
+        };
 
+        const response = await axios.post(PISTON_API_URL, payload);
         const result = response.data;
 
+        // Check for compilation or runtime errors
+        if (result.compile && result.compile.code !== 0) {
+            return res.json({
+                output: result.compile.stderr || result.compile.output,
+                status: "Compilation Error",
+                isError: true
+            });
+        }
+
+        const runOutput = result.run.stdout || result.run.stderr || "No output";
+        const isError = result.run.code !== 0;
+
         res.json({
-            output: result.stdout || result.stderr || result.compile_output || 'No output',
-            time: result.time,
-            memory: result.memory,
-            status: result.status.description
+            output: runOutput,
+            status: isError ? "Runtime Error" : "Accepted",
+            isError: isError
         });
 
     } catch (error) {
-        console.error('Judge0 run error:', error?.response?.data || error.message);
-        // Fallback for mock run if no API key
-        if (!judge0Key) {
-            return res.json({
-                output: "Judge0 API Key missing. Mock Output:\n" + (input ? `Input: ${input}\n` : "") + "Result: Processed successfully (Mock)",
-                time: "0.01",
-                status: "Accepted (Mock)"
-            });
-        }
-        res.status(500).json({ error: 'Execution failed' });
+        console.error('Piston execution error:', error.message);
+        res.status(500).json({ error: 'Execution failed', details: error.message });
     }
 };
 
 export const submitCode = async (req, res) => {
     const { user_id, question_id, code, language } = req.body;
 
-    if (!languageIds[language]) {
+    if (!pistonLanguages[language]) {
         return res.status(400).json({ error: 'Unsupported language' });
     }
 
     try {
         const connection = await mysql.createConnection(dbConfig);
 
-        // Fetch test cases
+        // Fetch hidden test cases
         const [testCases] = await connection.execute('SELECT * FROM test_cases WHERE question_id = ?', [question_id]);
+
+        if (testCases.length === 0) {
+            await connection.end();
+            return res.status(400).json({ error: 'No test cases found for this problem.' });
+        }
 
         let allPassed = true;
         let failedDetail = null;
-        let totalTime = 0;
 
-        // Using sequential execution for simplicity and valid time measurement per case
-        // In prod, might want to parallelize or use batch submission if Judge0 supports it
+        const langConfig = pistonLanguages[language];
+
+        // Sequential execution against test cases
         for (const testCase of testCases) {
             try {
-                const response = await axios.post(`${judge0Url}/submissions?base64_encoded=false&wait=true`, {
-                    source_code: code,
-                    language_id: languageIds[language],
-                    stdin: testCase.input,
-                    expected_output: testCase.expected_output
-                }, {
-                    headers: {
-                        'X-RapidAPI-Key': judge0Key,
-                        'X-RapidAPI-Host': 'judge0-ce.p.rapidapi.com'
-                    }
+                const response = await axios.post(PISTON_API_URL, {
+                    language: langConfig.language,
+                    version: langConfig.version,
+                    files: [{ content: code }],
+                    stdin: testCase.input
                 });
 
                 const result = response.data;
-                totalTime += parseFloat(result.time || 0);
 
-                // Check strict equality or trimmed
-                const actual = (result.stdout || "").trim();
+                // Compilation Error Check
+                if (result.compile && result.compile.code !== 0) {
+                    allPassed = false;
+                    failedDetail = {
+                        input: testCase.input,
+                        expected: testCase.expected_output,
+                        actual: "Compilation Error",
+                        error: result.compile.stderr
+                    };
+                    break;
+                }
+
+                // Runtime Error Check
+                if (result.run.code !== 0) {
+                    allPassed = false;
+                    failedDetail = {
+                        input: testCase.input,
+                        expected: testCase.expected_output,
+                        actual: "Runtime Error",
+                        error: result.run.stderr
+                    };
+                    break;
+                }
+
+                const actual = (result.run.stdout || "").trim();
                 const expected = (testCase.expected_output || "").trim();
 
-                // Judge0 status 3 is Accepted
-                if (result.status.id !== 3 && actual !== expected) {
+                if (actual !== expected) {
                     allPassed = false;
                     failedDetail = {
                         input: testCase.input,
                         expected: expected,
-                        actual: actual || result.stderr || result.compile_output,
-                        error: result.stderr || result.compile_output
+                        actual: actual,
+                        error: null
                     };
                     break;
                 }
+
             } catch (err) {
-                // Mock logic if no key
-                if (!judge0Key) {
-                    console.log("Mocking submission check...");
-                    continue; // Assume pass for mock
-                }
-                throw err;
+                console.error("Test case execution failed", err);
+                allPassed = false;
+                failedDetail = { error: "System Error during execution" };
+                break;
             }
         }
 
-        const status = allPassed ? 'Accepted' : 'Wrong Answer';
+        const status = allPassed ? 'Accepted' : 'Rejected';
 
         // Save submission
         await connection.execute(
             'INSERT INTO submissions (user_id, question_id, code, language, status, execution_time) VALUES (?, ?, ?, ?, ?, ?)',
-            [user_id, question_id, code, language, status, totalTime]
+            [user_id, question_id, code, language, status, 0] // Piston doesn't strictly provide easy total time in this structure, using 0 for now or sum details if available
         );
 
         await connection.end();
 
         res.json({
             status,
-            time: totalTime.toFixed(3),
+            passed: allPassed,
             details: failedDetail
         });
 
     } catch (error) {
-        console.error('Submission error:', error);
+        console.error('Submission processing error:', error);
         res.status(500).json({ error: 'Submission processing failed' });
     }
 };

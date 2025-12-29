@@ -33,12 +33,17 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     const [canResend, setCanResend] = useState(false);
 
     const modalRef = useRef<HTMLDivElement>(null);
+    const [forgotMode, setForgotMode] = useState(false);
+    const [forgotStep, setForgotStep] = useState(1); // 1: Email, 2: OTP & New Password
+
     // Reset state when modal opens
     useEffect(() => {
         if (isOpen) {
             setIsLogin(true);
+            setForgotMode(false);
             setSignupStep(1);
             setLoginStep(1);
+            setForgotStep(1);
             setShowPassword(false);
             setEmail('');
             setPassword('');
@@ -51,24 +56,23 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     }, [isOpen]);
 
     useEffect(() => {
-        const handleEscape = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onClose();
+            }
         };
-
         if (isOpen) {
-            document.addEventListener('keydown', handleEscape);
-            document.body.style.overflow = 'hidden'; // Prevent scrolling
+            window.addEventListener('keydown', handleKeyDown);
         }
-
         return () => {
-            document.removeEventListener('keydown', handleEscape);
-            document.body.style.overflow = 'unset';
+            window.removeEventListener('keydown', handleKeyDown);
         };
     }, [isOpen, onClose]);
 
+    // ... existing Timer Effect ... (Needs update for forgotStep)
     useEffect(() => {
         let interval: NodeJS.Timeout;
-        if ((signupStep === 2 || (isLogin && loginStep === 2)) && resendTimer > 0) {
+        if ((signupStep === 2 || (isLogin && loginStep === 2) || (forgotMode && forgotStep === 2)) && resendTimer > 0) {
             interval = setInterval(() => {
                 setResendTimer((prev) => prev - 1);
             }, 1000);
@@ -76,15 +80,16 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             setCanResend(true);
         }
         return () => clearInterval(interval);
-    }, [signupStep, loginStep, isLogin, resendTimer]);
+    }, [signupStep, loginStep, isLogin, forgotMode, forgotStep, resendTimer]);
 
-    // Reset timer when entering OTP step
+    // ... existing Reset Timer Effect ...
     useEffect(() => {
-        if (signupStep === 2 || (isLogin && loginStep === 2)) {
+        if (signupStep === 2 || (isLogin && loginStep === 2) || (forgotMode && forgotStep === 2)) {
             setResendTimer(30);
             setCanResend(false);
         }
-    }, [signupStep, loginStep, isLogin]);
+    }, [signupStep, loginStep, isLogin, forgotMode, forgotStep]);
+
 
     const handleBackdropClick = (e: React.MouseEvent) => {
         if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
@@ -93,68 +98,118 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     };
 
     const handleSendOtp = async () => {
-        if (!email || !name || !password) {
-            setError("All fields are required");
+        if (!email) {
+            setError("Email is required");
             return;
         }
         setLoading(true);
-        setError('');
-
-        try {
-            const result = await sendOtp(email);
-            if (result.error) throw new Error(result.error.message);
+        const { error } = await sendOtp(email);
+        setLoading(false);
+        if (error) {
+            setError(error.message);
+        } else {
             setSignupStep(2);
+            toast({ title: "OTP Sent", description: "Please check your email" });
+        }
+    };
+
+    const handleForgotPassword = async () => {
+        if (!email) {
+            setError("Email is required");
+            return;
+        }
+        setLoading(true);
+        try {
+            // Call API
+            const res = await fetch(`http://localhost:5000/api/auth/forgot-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email.trim() }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Failed to send OTP');
+
+            setForgotStep(2);
+            toast({ title: "OTP Sent", description: "Check your email for password reset PIN." });
         } catch (err: any) {
-            setError(err.message || 'Failed to send OTP');
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleResetPassword = async () => {
+        if (!otp || !password) {
+            setError("OTP and new password are required");
+            return;
+        }
+        setLoading(true);
+        try {
+            const res = await fetch(`http://localhost:5000/api/auth/reset-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email.trim(), otp, newPassword: password }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Failed to reset password');
+
+            toast({ title: "Success", description: "Password reset successfully. Please login." });
+            setForgotMode(false);
+            setIsLogin(true);
+            setLoginStep(1);
+        } catch (err: any) {
+            setError(err.message);
         } finally {
             setLoading(false);
         }
     };
 
     const handleResendOtp = async () => {
-        if (!canResend) return;
-        setLoading(true);
-        setError('');
-        try {
-            const result = await sendOtp(email);
-            if (result.error) throw new Error(result.error.message);
-            setResendTimer(30);
-            setCanResend(false);
-            toast({
-                title: "OTP Resent",
-                description: "A new verification code has been sent to your email.",
-            });
-        } catch (err: any) {
-            setError(err.message || 'Failed to resend OTP');
-        } finally {
+        if (resendTimer > 0) return;
+
+        if (isLogin) {
+            setLoading(true);
+            await signIn(email, password);
             setLoading(false);
+            toast({ title: "OTP Resent", description: "Admin OTP has been resent." });
+        } else {
+            await handleSendOtp();
         }
+        setResendTimer(30);
+        setCanResend(false);
+    };
+    const handleForgotResend = async () => {
+        if (!canResend) return;
+        await handleForgotPassword();
+        setForgotStep(2); // Stay on step 2
+        setResendTimer(30);
+        setCanResend(false);
     };
 
     const handleSignup = async () => {
-        if (!otp) {
-            setError("Please enter the OTP");
+        if (!otp || !name || !email || !password) {
+            setError('All fields are required');
             return;
         }
         setLoading(true);
-        try {
-            const { error } = await signUp(email, password, name, otp);
-            if (error) throw new Error(error.message);
-            // Trigger Onboarding Overlay instead of immediate redirect
-            // navigate('/welcome'); 
-            // setResetOnboarding(true); // Handled in AuthContext now
+        const { error } = await signUp(email, password, name, otp);
+        setLoading(false);
+        if (error) {
+            setError(error.message);
+        } else {
             onClose();
-        } catch (err: any) {
-            setError(err.message || 'Registration failed');
-        } finally {
-            setLoading(false);
         }
-    }
+    };
 
-
+    // ... existing handleSubmit ...
     const handleSubmit = async () => {
         setError('');
-
+        if (forgotMode) {
+            if (forgotStep === 1) await handleForgotPassword();
+            else await handleResetPassword();
+            return;
+        }
+        // ... existing login/signup logic
         try {
             const trimmedEmail = email.trim();
             if (isLogin) {
@@ -207,11 +262,14 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         }
     };
 
+
     // UI Helpers
     const toggleMode = () => {
         setIsLogin(!isLogin);
+        setForgotMode(false);
         setSignupStep(1);
         setLoginStep(1);
+        setForgotStep(1);
         setError('');
         setOtp('');
     }
@@ -223,7 +281,6 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-[4px]"
             onClick={handleBackdropClick}
         >
-            {/* ... (Keep illustration div) */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center opacity-10">
             </div>
 
@@ -242,15 +299,12 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
                 <div className="text-left mb-8">
                     <h2 className="text-3xl font-bold text-slate-900 mb-2">
-                        {isLogin ? (loginStep === 1 ? 'Login' : 'Admin Verification') : (signupStep === 1 ? 'Sign Up' : 'Verify Email')}
+                        {forgotMode ? (forgotStep === 1 ? 'Reset Password' : 'New Password') :
+                            isLogin ? (loginStep === 1 ? 'Login' : 'Admin Verification') : (signupStep === 1 ? 'Sign Up' : 'Verify Email')}
                     </h2>
-
                 </div>
 
                 <div className="space-y-6">
-                    {/* Google Login - Only show on Login or Signup Step 1 */}
-
-
                     <div className="space-y-4">
                         {error && (
                             <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg">
@@ -259,24 +313,49 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                         )}
 
                         {/* INPUT FIELDS */}
-                        {((!isLogin && signupStep === 2) || (isLogin && loginStep === 2)) ? (
-                            <div className="space-y-2 animate-fade-in-up">
-                                <label className="text-sm font-medium text-slate-700">Enter OTP</label>
-                                <Input
-                                    type="text"
-                                    placeholder="000 - 000"
-                                    className="h-12 bg-slate-50 border-slate-200 focus-visible:ring-emerald-500 rounded-xl px-4 text-center tracking-widest text-lg"
-                                    value={otp}
-                                    maxLength={6}
-                                    onChange={(e) => setOtp(e.target.value)}
-                                />
+                        {((!isLogin && signupStep === 2) || (isLogin && loginStep === 2) || (forgotMode && forgotStep === 2)) ? (
+                            <div className="space-y-4 animate-fade-in-up">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-slate-700">Enter OTP</label>
+                                    <Input
+                                        type="text"
+                                        placeholder="000 - 000"
+                                        className="h-12 bg-slate-50 border-slate-200 focus-visible:ring-emerald-500 rounded-xl px-4 text-center tracking-widest text-lg"
+                                        value={otp}
+                                        maxLength={6}
+                                        onChange={(e) => setOtp(e.target.value)}
+                                    />
+                                </div>
+
+                                {forgotMode && (
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-slate-700">New Password</label>
+                                        <div className="relative">
+                                            <Input
+                                                type={showPassword ? "text" : "password"}
+                                                placeholder="••••••••"
+                                                className="h-12 bg-slate-50 border-slate-200 focus-visible:ring-emerald-500 rounded-xl px-4 pr-10"
+                                                value={password}
+                                                onChange={(e) => setPassword(e.target.value)}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                                            >
+                                                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <p className="text-sm text-slate-500 text-center">
                                     We sent a code to <span className="font-medium text-slate-900">{email}</span>
                                 </p>
                                 <div className="text-center mt-2">
                                     {canResend ? (
                                         <button
-                                            onClick={handleResendOtp}
+                                            onClick={forgotMode ? handleForgotResend : handleResendOtp}
                                             disabled={loading}
                                             className="text-sm text-emerald-600 font-semibold hover:underline"
                                         >
@@ -288,14 +367,22 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                                         </span>
                                     )}
                                 </div>
-                                <button onClick={() => isLogin ? setLoginStep(1) : setSignupStep(1)} className="text-sm text-emerald-600 hover:underline w-full text-center mt-4">
-                                    Change details
+                                <button onClick={() => {
+                                    if (forgotMode) {
+                                        setForgotStep(1);
+                                    } else if (isLogin) {
+                                        setLoginStep(1);
+                                    } else {
+                                        setSignupStep(1);
+                                    }
+                                }} className="text-sm text-emerald-600 hover:underline w-full text-center mt-4">
+                                    {forgotMode ? 'Change Email' : 'Change details'}
                                 </button>
                             </div>
                         ) : (
-                            // Standard Login/Signup Inputs
+                            // Standard Form
                             <>
-                                {!isLogin && (
+                                {!isLogin && !forgotMode && (
                                     <div className="space-y-2 animate-fade-in-up">
                                         <label className="text-sm font-medium text-slate-700">Full Name</label>
                                         <Input
@@ -319,30 +406,32 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                                     />
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-slate-700">Password</label>
-                                    <div className="relative">
-                                        <Input
-                                            type={showPassword ? "text" : "password"}
-                                            placeholder="••••••••"
-                                            className="h-12 bg-slate-50 border-slate-200 focus-visible:ring-emerald-500 rounded-xl px-4 pr-10"
-                                            value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
-                                        >
-                                            {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                                        </button>
+                                {!forgotMode && (
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-slate-700">Password</label>
+                                        <div className="relative">
+                                            <Input
+                                                type={showPassword ? "text" : "password"}
+                                                placeholder="••••••••"
+                                                className="h-12 bg-slate-50 border-slate-200 focus-visible:ring-emerald-500 rounded-xl px-4 pr-10"
+                                                value={password}
+                                                onChange={(e) => setPassword(e.target.value)}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                                            >
+                                                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </>
                         )}
                     </div>
 
-                    {isLogin && (
+                    {isLogin && !forgotMode && (
                         <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-2">
                                 <Checkbox id="keep-logged-in" className="border-slate-300 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500 rounded-md" />
@@ -353,24 +442,41 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                                     Keep me logged in
                                 </label>
                             </div>
-                            <a href="#" className="text-sm font-medium text-slate-500 hover:text-slate-800 underline-offset-4 hover:underline">
+                            <button
+                                onClick={() => { setIsLogin(false); setForgotMode(true); }}
+                                className="text-sm font-medium text-slate-500 hover:text-slate-800 underline-offset-4 hover:underline"
+                            >
                                 Forgot password?
-                            </a>
+                            </button>
                         </div>
                     )}
 
-                    <div className="text-center mb-4">
-                        <p className="text-slate-500">
-                            {isLogin ? "Don't have an account?" : "Already have an account?"}
+                    {!forgotMode && (
+                        <div className="text-center mb-4">
+                            <p className="text-slate-500">
+                                {isLogin ? "Don't have an account?" : "Already have an account?"}
+                                <button
+                                    onClick={toggleMode}
+                                    className="text-emerald-500 hover:underline font-medium ml-1"
+                                    type="button"
+                                >
+                                    {isLogin ? 'Signup' : 'Login'}
+                                </button>
+                            </p>
+                        </div>
+                    )}
+
+                    {forgotMode && (
+                        <div className="text-center mb-4">
                             <button
-                                onClick={toggleMode}
-                                className="text-emerald-500 hover:underline font-medium ml-1"
+                                onClick={() => { setForgotMode(false); setIsLogin(true); setError(''); }}
+                                className="text-slate-500 hover:text-slate-800 text-sm font-medium"
                                 type="button"
                             >
-                                {isLogin ? 'Signup' : 'Login'}
+                                Back to Login
                             </button>
-                        </p>
-                    </div>
+                        </div>
+                    )}
 
                     <Button
                         onClick={handleSubmit}
@@ -380,10 +486,12 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                         {loading ? (
                             <>
                                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                {isLogin ? (loginStep === 1 ? 'Signing In..' : 'Verifying...') : (signupStep === 1 ? 'Sending OTP...' : 'Verifying...')}
+                                {forgotMode ? 'Processing...' :
+                                    isLogin ? (loginStep === 1 ? 'Signing In..' : 'Verifying...') : (signupStep === 1 ? 'Sending OTP...' : 'Verifying...')}
                             </>
                         ) : (
-                            isLogin ? (loginStep === 1 ? 'Login' : 'Verify OTP') : (signupStep === 1 ? 'Verify Email' : 'Create Account')
+                            forgotMode ? (forgotStep === 1 ? 'Send Reset Link' : 'Reset Password') :
+                                isLogin ? (loginStep === 1 ? 'Login' : 'Verify OTP') : (signupStep === 1 ? 'Verify Email' : 'Create Account')
                         )}
                     </Button>
                 </div>

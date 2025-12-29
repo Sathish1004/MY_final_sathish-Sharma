@@ -105,7 +105,10 @@ import ProjectsOverview from '@/components/admin/module-overviews/ProjectsOvervi
 import JobsOverview from '@/components/admin/module-overviews/JobsOverview';
 
 // Socket connection
-const socket = io("http://localhost:5000");
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// Socket connection
+const socket = io(API_URL);
+
 
 // --- Types & Mock Data ---
 
@@ -365,7 +368,7 @@ function CoursesManagement() {
 
     useEffect(() => {
         if (showOverview) {
-            fetch('http://localhost:5000/api/dashboard/courses')
+            fetch(API_URL + '/api/dashboard/courses')
                 .then(res => res.json())
                 .then(data => setCourseStats(data))
                 .catch(err => console.error("Error fetching course stats", err));
@@ -415,8 +418,8 @@ function CodingAnalytics() {
     useEffect(() => {
         if (showOverview) {
             Promise.all([
-                fetch('http://localhost:5000/api/dashboard/overview'),
-                fetch('http://localhost:5000/api/dashboard/coders')
+                fetch(API_URL + '/api/dashboard/overview'),
+                fetch(API_URL + '/api/dashboard/coders')
             ]).then(async ([overviewRes, codersRes]) => {
                 if (overviewRes.ok) setStats(await overviewRes.json());
                 if (codersRes.ok) setTopCoders(await codersRes.json());
@@ -465,7 +468,7 @@ function ProjectManagement() {
 
     useEffect(() => {
         if (showOverview) {
-            fetch('http://localhost:5000/api/dashboard/projects')
+            fetch(API_URL + '/api/dashboard/projects')
                 .then(res => res.json())
                 .then(data => setProjectStats(data))
                 .catch(err => console.error("Error fetching project stats", err));
@@ -544,14 +547,14 @@ function MentorshipManagement() {
         const fetchData = async () => {
             try {
                 // Fetch Feature Status
-                const featureRes = await fetch('http://localhost:5000/api/features/mentorship');
+                const featureRes = await fetch(API_URL + '/api/features/mentorship');
                 if (featureRes.ok) {
                     const featureData = await featureRes.json();
                     setIsFeatureEnabled(featureData.is_enabled);
                 }
 
                 // Fetch Sessions
-                const response = await fetch('http://localhost:5000/api/mentorship/sessions');
+                const response = await fetch(API_URL + '/api/mentorship/sessions');
                 if (response.ok) {
                     const data = await response.json();
                     setSessions(data);
@@ -565,7 +568,7 @@ function MentorshipManagement() {
 
     useEffect(() => {
         if (showOverview) {
-            fetch('http://localhost:5000/api/dashboard/mentorship')
+            fetch(API_URL + '/api/dashboard/mentorship')
                 .then(res => res.json())
                 .then(data => setMentorshipOverviewStats(data))
                 .catch(err => console.error("Error fetching mentorship stats", err));
@@ -576,7 +579,7 @@ function MentorshipManagement() {
         setIsLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:5000/api/features/admin/mentorship', {
+            const response = await fetch(API_URL + '/api/features/admin/mentorship', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -703,7 +706,7 @@ function JobsManagement() {
 
     useEffect(() => {
         if (showOverview) {
-            fetch('http://localhost:5000/api/dashboard/jobs')
+            fetch(API_URL + '/api/dashboard/jobs')
                 .then(res => res.json())
                 .then(data => setJobOverviewStats(data))
                 .catch(err => console.error("Error fetching job stats", err));
@@ -722,7 +725,7 @@ function JobsManagement() {
     const fetchJobs = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch('http://localhost:5000/api/jobs');
+            const response = await fetch(API_URL + '/api/jobs');
             if (response.ok) {
                 const data = await response.json();
                 const mappedJobs = data.map((j: any) => ({
@@ -1248,7 +1251,7 @@ function EventsManagement() {
 
     const fetchEvents = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/events');
+            const response = await fetch(API_URL + '/api/events');
             if (response.ok) {
                 const data = await response.json();
                 setEvents(data);
@@ -1358,7 +1361,7 @@ function EventsManagement() {
             const token = localStorage.getItem('token');
             const url = editingId
                 ? `http://localhost:5000/api/events/${editingId}`
-                : 'http://localhost:5000/api/events';
+                : API_URL + '/api/events';
 
             const method = editingId ? 'PUT' : 'POST';
 
@@ -1620,7 +1623,7 @@ function FeedbackManagement() {
     useEffect(() => {
         const fetchFeedback = async () => {
             try {
-                const response = await fetch('http://localhost:5000/api/feedback/all');
+                const response = await fetch(API_URL + '/api/feedback/all');
                 if (response.ok) {
                     const data = await response.json();
                     setFeedback(data);
@@ -1845,7 +1848,7 @@ function NewsManagement() {
 
     const fetchNews = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/news');
+            const response = await fetch(API_URL + '/api/news');
             if (response.ok) {
                 const data = await response.json();
                 setNews(data);
@@ -1926,7 +1929,7 @@ function NewsManagement() {
         try {
             const url = editId
                 ? `http://localhost:5000/api/news/update/${editId}`
-                : 'http://localhost:5000/api/news/add';
+                : API_URL + '/api/news/add';
 
             const method = editId ? 'PUT' : 'POST';
 

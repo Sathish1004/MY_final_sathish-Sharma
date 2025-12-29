@@ -57,8 +57,14 @@ export const getAllUsers = async (req, res) => {
             params.push(`%${search}%`, `%${search}%`, search);
         }
 
-        // Sorting (Default: Alphabetical)
-        query += ' ORDER BY name ASC';
+        // Sorting
+        const { sort } = req.query;
+        if (sort === 'alpha' || sort === 'alphabetical') {
+            query += ' ORDER BY name ASC';
+        } else {
+            // Default to 'recent' (created_at DESC)
+            query += ' ORDER BY created_at DESC';
+        }
 
         // Pagination
         query += ' LIMIT ? OFFSET ?';

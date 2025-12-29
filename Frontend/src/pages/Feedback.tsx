@@ -26,6 +26,8 @@ const feedbackCategories = [
   { id: 'general', label: 'General Feedback', icon: MessageSquare, description: 'Overall platform satisfaction' },
 ];
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 export default function Feedback() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -83,7 +85,7 @@ export default function Feedback() {
         comments: description.trim()
       };
 
-      const response = await fetch('http://localhost:5000/api/feedback/add', {
+      const response = await fetch(API_URL + '/api/feedback/add', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

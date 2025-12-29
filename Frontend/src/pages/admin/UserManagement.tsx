@@ -54,6 +54,7 @@ export default function UserManagement() {
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const [genderFilter, setGenderFilter] = useState("all");
+    const [sortOrder, setSortOrder] = useState("recent");
 
     // Pagination
     const [page, setPage] = useState(1);
@@ -84,7 +85,9 @@ export default function UserManagement() {
             const queryParams = new URLSearchParams();
             if (debouncedSearch) queryParams.append('search', debouncedSearch);
             if (statusFilter !== 'all') queryParams.append('status', statusFilter);
+            if (statusFilter !== 'all') queryParams.append('status', statusFilter);
             if (genderFilter !== 'all') queryParams.append('gender', genderFilter);
+            queryParams.append('sort', sortOrder);
             queryParams.append('page', page.toString());
             queryParams.append('limit', LIMIT.toString());
 
@@ -119,7 +122,7 @@ export default function UserManagement() {
 
     useEffect(() => {
         fetchUsers();
-    }, [debouncedSearch, statusFilter, genderFilter, page]);
+    }, [debouncedSearch, statusFilter, genderFilter, sortOrder, page]);
 
     const handleSelectAll = (checked: boolean | string) => {
         if (checked === true) {
@@ -284,7 +287,21 @@ export default function UserManagement() {
                             </SelectContent>
                         </Select>
                     </div>
+
+                    <div className="h-6 w-px bg-slate-200 hidden sm:block mx-1" />
+
+                    {/* Sort Order */}
+                    <Select value={sortOrder} onValueChange={(value) => { setSortOrder(value); setPage(1); }}>
+                        <SelectTrigger className="w-[140px] bg-white">
+                            <SelectValue placeholder="Sort By" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="recent">Recent Wise</SelectItem>
+                            <SelectItem value="alpha">Alphabet Wise</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
+
 
                 {selectedUsers.length > 0 && (
                     <div className="flex items-center gap-2 animate-in fade-in zoom-in-95">
@@ -471,6 +488,6 @@ export default function UserManagement() {
                 onClose={() => setIsDrawerOpen(false)}
                 onUserUpdated={fetchUsers}
             />
-        </div>
+        </div >
     );
 }

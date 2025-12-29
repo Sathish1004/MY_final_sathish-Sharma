@@ -1,7 +1,5 @@
 
 
-
-
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation, useOutletContext } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -59,7 +57,7 @@ export default function Index() {
         <SaaSBackground />
 
         {/* Hero Section */}
-        <section className="relative overflow-hidden pt-24 pb-12 lg:pt-40 lg:pb-32">
+        <section className="relative overflow-hidden pt-24 pb-32 sm:pb-40 lg:pt-40 lg:pb-32">
           {/* Background - Clean gradient REMOVED for SaaS Background */}
 
           <div className="max-w-[1700px] mx-auto px-4 md:px-8">
@@ -107,7 +105,7 @@ export default function Index() {
               </div>
 
               {/* Right Visual (New Feature Wheel) */}
-              <div className="relative w-full h-[320px] sm:h-[500px] lg:h-[600px] flex items-center justify-center order-2 lg:order-2 mt-0 lg:mt-0">
+              <div className="hidden lg:flex relative w-full h-[320px] sm:h-[500px] lg:h-[600px] items-center justify-center order-2 lg:order-2 mt-0 lg:mt-0">
                 <FeatureWheel />
               </div>
             </div>

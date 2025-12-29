@@ -76,10 +76,13 @@ interface UserDetails {
     bio?: string;
     github?: string;
     linkedin?: string;
+    college_name?: string;
+    profile_picture?: string;
+    resume_path?: string;
 }
 
 interface UserProfileDrawerProps {
-    user: { id: number; name: string; email: string; role: string; status: string; gender?: string } | null;
+    user: { id: number; name: string; email: string; role: string; status: string; gender?: string; profile_picture?: string } | null;
     isOpen: boolean;
     onClose: () => void;
     onUserUpdated: () => void;
@@ -187,7 +190,7 @@ export default function UserProfileDrawer({ user, isOpen, onClose, onUserUpdated
 
                     <div className="flex items-start gap-5">
                         <Avatar className="h-20 w-20 border-4 border-slate-700/50 shadow-xl">
-                            <AvatarImage src={`https://ui-avatars.com/api/?name=${user.name}&background=6366f1&color=fff`} />
+                            <AvatarImage src={user.profile_picture ? `http://localhost:5000${user.profile_picture}` : `https://ui-avatars.com/api/?name=${user.name}&background=6366f1&color=fff`} />
                             <AvatarFallback className="text-2xl font-bold bg-indigo-600 text-white">{user.name.charAt(0)}</AvatarFallback>
                         </Avatar>
 
@@ -257,6 +260,18 @@ export default function UserProfileDrawer({ user, isOpen, onClose, onUserUpdated
                                                     <span className="text-slate-500">Joined Date</span>
                                                     <span className="text-slate-700">{profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'N/A'}</span>
                                                 </div>
+                                                <div className="flex justify-between py-1 border-b border-slate-50">
+                                                    <span className="text-slate-500">College</span>
+                                                    <span className="text-slate-700">{profile?.college_name || "N/A"}</span>
+                                                </div>
+                                                {profile?.resume_path && (
+                                                    <div className="flex justify-between py-1 border-b border-slate-50">
+                                                        <span className="text-slate-500">Resume</span>
+                                                        <a href={`http://localhost:5000${profile.resume_path}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-xs flex items-center">
+                                                            View Resume <ExternalLink className="h-3 w-3 ml-1" />
+                                                        </a>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
 
@@ -497,19 +512,7 @@ export default function UserProfileDrawer({ user, isOpen, onClose, onUserUpdated
                                         </div>
                                     </div>
 
-                                    <div className="bg-red-50 p-5 rounded-xl border border-red-100 space-y-4">
-                                        <h3 className="font-semibold text-red-900 border-b border-red-200 pb-2 flex items-center gap-2">
-                                            <Shield className="h-4 w-4" /> Danger Zone
-                                        </h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                            <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700 bg-white">
-                                                <Lock className="h-4 w-4 mr-2" /> Reset Password
-                                            </Button>
-                                            <Button variant="outline" className="text-orange-600 border-orange-200 hover:bg-orange-100 hover:text-orange-700 bg-white">
-                                                <Activity className="h-4 w-4 mr-2" /> Force Logout
-                                            </Button>
-                                        </div>
-                                    </div>
+
 
                                     <Button onClick={handleSaveChanges} disabled={loading} className="w-full bg-slate-900 hover:bg-slate-800 h-12 text-md">
                                         {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
@@ -521,6 +524,6 @@ export default function UserProfileDrawer({ user, isOpen, onClose, onUserUpdated
                     </Tabs>
                 </div>
             </SheetContent>
-        </Sheet>
+        </Sheet >
     );
 }

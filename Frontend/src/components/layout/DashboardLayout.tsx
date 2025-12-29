@@ -134,7 +134,7 @@ function AppSidebar() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="w-full justify-start gap-3 px-2">
               <Avatar className="h-8 w-8">
-                {/* <AvatarImage src={user?.avatar_url} /> */}
+                <AvatarImage src={user?.profile_picture ? `http://localhost:5000${user.profile_picture}` : undefined} />
                 <AvatarFallback className="bg-primary/10 text-primary">
                   {user?.name?.charAt(0).toUpperCase() || 'G'}
                 </AvatarFallback>
@@ -152,6 +152,10 @@ function AppSidebar() {
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate('/profile')}>
+              <Users className="mr-2 h-4 w-4" />
+              My Profile
+            </DropdownMenuItem>
             <DropdownMenuItem>
               <Settings className="mr-2 h-4 w-4" />
               Settings

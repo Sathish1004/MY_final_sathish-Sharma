@@ -219,3 +219,73 @@ export const getMe = async (req, res) => {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
+// ... existing code ...
+
+export const forgotPassword = async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email is required' });
+
+    try {
+        const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+        if (users.length === 0) {
+            // Check admin
+            const [admins] = await db.query('SELECT * FROM admin WHERE email = ?', [email]);
+            if (admins.length === 0) {
+                return res.status(404).json({ message: 'User not found' });
+            }
+        }
+
+        const otp = generateOTP();
+        const expiresAt = new Date(Date.now() + 10 * 60000); // 10 mins
+
+        await db.query(`
+            INSERT INTO otp_codes (email, otp_code, expires_at, created_at)
+            VALUES (?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE 
+            otp_code = VALUES(otp_code), expires_at = VALUES(expires_at), created_at = NOW()
+        `, [email, otp, expiresAt]);
+
+        await sendOtpEmail(email, otp);
+
+        res.json({ message: 'OTP sent to your email' });
+    } catch (error) {
+        console.error('Forgot password error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+export const resetPassword = async (req, res) => {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) {
+        return res.status(400).json({ message: 'All fields are required' });
+    }
+
+    try {
+        const [otpRecord] = await db.query('SELECT * FROM otp_codes WHERE email = ? AND otp_code = ? AND expires_at > NOW()', [email, otp]);
+        if (otpRecord.length === 0) {
+            return res.status(400).json({ message: 'Invalid or expired OTP' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        // Try updating user
+        const [userUpdate] = await db.query('UPDATE users SET password = ? WHERE email = ?', [hashedPassword, email]);
+
+        if (userUpdate.affectedRows === 0) {
+            // Try updating admin
+            const [adminUpdate] = await db.query('UPDATE admin SET password = ? WHERE email = ?', [newPassword, email]); // Admin stores plain text?? Based on login logic yes.
+            if (adminUpdate.affectedRows === 0) {
+                return res.status(404).json({ message: 'User not found' });
+            }
+        }
+
+        // Delete OTP
+        await db.query('DELETE FROM otp_codes WHERE email = ?', [email]);
+
+        res.json({ message: 'Password reset successfully' });
+    } catch (error) {
+        console.error('Reset password error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};

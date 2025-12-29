@@ -6,6 +6,10 @@ interface User {
   name: string;
   email: string;
   role: 'ADMIN' | 'STUDENT';
+  profile_picture?: string;
+  phone_number?: string;
+  college_name?: string;
+  resume_path?: string;
 }
 
 interface AuthContextType {

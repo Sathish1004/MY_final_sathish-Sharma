@@ -117,7 +117,7 @@ export default function Chatbot() {
       {/* Chat Toggle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-gradient-primary shadow-lg hover:opacity-90 transition-all flex items-center justify-center text-primary-foreground"
+        className="hidden md:flex fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-gradient-primary shadow-lg hover:opacity-90 transition-all items-center justify-center text-primary-foreground"
         aria-label="Toggle chat"
       >
         {isOpen ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
@@ -160,11 +160,10 @@ export default function Chatbot() {
                       </div>
                     )}
                     <div
-                      className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${
-                        msg.role === 'user'
+                      className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${msg.role === 'user'
                           ? 'bg-primary text-primary-foreground rounded-br-md'
                           : 'bg-muted text-foreground rounded-bl-md'
-                      }`}
+                        }`}
                     >
                       {msg.content || (isLoading && i === messages.length - 1 && (
                         <Loader2 className="h-4 w-4 animate-spin" />

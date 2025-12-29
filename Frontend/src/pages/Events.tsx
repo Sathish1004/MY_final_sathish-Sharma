@@ -49,6 +49,9 @@ const getEventColor = (type: string) => {
   }
 };
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+
 export default function Events() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,7 +59,7 @@ export default function Events() {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/events');
+        const response = await fetch(API_URL + '/api/events');
         if (response.ok) {
           const data = await response.json();
           setEvents(data);

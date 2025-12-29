@@ -2,6 +2,11 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import db from './config/db.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Routes imports
 import authRoutes from './routes/auth.js';
@@ -37,6 +42,7 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Share io instance with routes/controllers if needed (via app.set or middleware)
 app.set('io', io);
