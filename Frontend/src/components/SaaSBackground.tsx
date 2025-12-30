@@ -8,14 +8,14 @@ export default function SaaSBackground() {
 
             {/* 2. Attractive Multi-Color Mesh Gradient */}
             <div className="absolute top-0 right-0 left-0 h-[800px] overflow-hidden opacity-40">
-                {/* Left: Rose/Pink Linear */}
-                <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[600px] bg-gradient-to-br from-rose-500 via-pink-500 to-transparent blur-[80px] rounded-full mix-blend-multiply" />
+                {/* Left: Light Blue/Sky Linear - Removed as per user request to clear left corner */}
+                {/* <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[600px] bg-gradient-to-br from-cyan-300 via-sky-200 to-transparent blur-[80px] rounded-full mix-blend-multiply" /> */}
 
-                {/* Right: Sky/Cyan Linear */}
-                <div className="absolute top-[-20%] right-[-10%] w-[50%] h-[600px] bg-gradient-to-bl from-cyan-500 via-sky-500 to-transparent blur-[80px] rounded-full mix-blend-multiply" />
+                {/* Right: Cyan/Sky Linear */}
+                <div className="absolute top-[-20%] right-[-10%] w-[50%] h-[600px] bg-gradient-to-bl from-cyan-300 via-sky-200 to-transparent blur-[80px] rounded-full mix-blend-multiply" />
 
-                {/* Center: Emerald/Teal Linear (Green glow user liked) */}
-                <div className="absolute top-[-30%] left-[20%] right-[20%] h-[500px] bg-gradient-to-b from-emerald-200 via-teal-200 to-transparent blur-[80px] rounded-full mix-blend-multiply" />
+                {/* Center: Pale Blue Linear */}
+                <div className="absolute top-[-30%] left-[20%] right-[20%] h-[500px] bg-gradient-to-b from-blue-200 via-cyan-100 to-transparent blur-[80px] rounded-full mix-blend-multiply" />
             </div>
 
             {/* 3. Top Rim Light (Subtle White/Shine) */}
