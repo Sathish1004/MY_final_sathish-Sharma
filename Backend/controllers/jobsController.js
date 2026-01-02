@@ -113,3 +113,31 @@ export const deleteJob = async (req, res) => {
         res.status(500).json({ message: 'Server error deleting job' });
     }
 };
+
+// Track job application (click)
+export const trackJobApplication = async (req, res) => {
+    try {
+        const { job_id, user_id } = req.body;
+
+        if (!job_id || !user_id) {
+            return res.status(400).json({ message: 'Job ID and User ID are required' });
+        }
+
+        // Insert ignore to handle duplicate clicks gracefully
+        await db.query(
+            'INSERT IGNORE INTO job_applications (job_id, user_id) VALUES (?, ?)',
+            [job_id, user_id]
+        );
+
+        // Increment the click counter on the job itself
+        await db.query(
+            'UPDATE jobs SET clicks = clicks + 1 WHERE job_id = ?',
+            [job_id]
+        );
+
+        res.json({ message: 'Application tracked and click counted successfully' });
+    } catch (error) {
+        console.error('Error tracking application:', error);
+        res.status(500).json({ message: 'Server error tracking application' });
+    }
+};

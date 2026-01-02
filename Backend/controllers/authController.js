@@ -152,6 +152,7 @@ export const login = async (req, res) => {
             // Send Email
             const emailSent = await sendOtpEmail(email, otp);
             if (!emailSent) {
+                // If email fails, for dev purposes, maybe just return success if hardcoded? But sticking to flow
                 return res.status(500).json({ message: 'Failed to send verification email' });
             }
 

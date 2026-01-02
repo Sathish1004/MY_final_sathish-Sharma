@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useNotifications } from '@/contexts/NotificationContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import {
@@ -20,7 +21,8 @@ import {
   FileText,
   CheckCircle2,
   Calendar,
-  Code
+  Code,
+  AlertCircle
 } from 'lucide-react';
 
 // Empty initial state, will fetch from API
@@ -45,6 +47,7 @@ export default function Jobs() {
   const [savedJobs, setSavedJobs] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { addNotification } = useNotifications();
+  const { user } = useAuth();
 
   // Helper to format date diff
   const getPostedTime = (dateStr: string) => {
@@ -118,7 +121,16 @@ export default function Jobs() {
     );
   };
 
-  const handleRegister = (job: any) => {
+  const handleRegister = async (job: any) => {
+    // Track application click (fire and forget, don't block navigation)
+    if (user?.id) {
+      fetch('http://localhost:5000/api/jobs/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_id: job.id, user_id: user.id })
+      }).catch(err => console.error("Failed to track job application", err));
+    }
+
     window.open(job.applyUrl, '_blank');
     addNotification({
       title: 'Job Registration Started',
@@ -247,12 +259,17 @@ export default function Jobs() {
                     </div>
 
                     <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-                      <p className={`text-sm ${isExpired(job.deadline) ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>
-                        Deadline: <span className={isExpired(job.deadline) ? 'text-red-500' : 'text-foreground font-medium'}>
-                          {new Date(job.deadline).toLocaleDateString()}
-                        </span>
-                        {isExpired(job.deadline) && <span className="ml-2">(Job has closed)</span>}
-                      </p>
+                      {isExpired(job.deadline) ? (
+                        <Badge variant="destructive" className="bg-red-500/10 text-red-500 hover:bg-red-500/20 border-red-500/20 gap-1.5 pl-2 pr-3 py-1">
+                          <AlertCircle className="h-3.5 w-3.5" />
+                          <span>Closed: {new Date(job.deadline).toLocaleDateString()}</span>
+                        </Badge>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-secondary/50 px-2.5 py-1 rounded-md border border-border/50">
+                          <Clock className="h-3.5 w-3.5" />
+                          <span>Expires: {new Date(job.deadline).toLocaleDateString()}</span>
+                        </div>
+                      )}
 
                       <Dialog>
                         <DialogTrigger asChild>
