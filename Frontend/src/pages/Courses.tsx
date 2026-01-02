@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,113 +8,156 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Search,
-  Play,
   Clock,
   BookOpen,
-  CheckCircle2
+  CheckCircle2,
+  Circle,
+  Loader2,
+  Play
+  
 } from 'lucide-react';
 import FeatureGuard from "@/components/FeatureGuard";
+import { useToast } from '@/components/ui/use-toast';
+import { useCourse } from '@/contexts/CourseContext';
 
-const categories = ['All', 'Frontend', 'Backend', 'AI/ML', 'Data Science', 'Core Subjects', 'Aptitude'];
-
-// Realistic demo data
-const initialCourses = [
-  {
-    id: 1,
-    title: 'React.js Complete Guide',
-    category: 'Frontend',
-    thumbnail: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&h=225&fit=crop',
-    instructor: 'John Smith',
-    duration: '10 Modules',
-    difficulty: 'Intermediate',
-    totalVideos: 10,
-    progress: 0
-  },
-  {
-    id: 2,
-    title: 'Node.js & Express Masterclass',
-    category: 'Backend',
-    thumbnail: 'https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=400&h=225&fit=crop',
-    instructor: 'Sarah Johnson',
-    duration: '10 Modules',
-    difficulty: 'Intermediate',
-    totalVideos: 10,
-    progress: 0
-  },
-  {
-    id: 3,
-    title: 'Machine Learning Fundamentals',
-    category: 'AI/ML',
-    thumbnail: 'https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?w=400&h=225&fit=crop',
-    instructor: 'Dr. Alex Chen',
-    duration: '1 min per video',
-    difficulty: 'Advanced',
-    totalVideos: 10,
-    progress: 0
-  },
-  {
-    id: 4,
-    title: 'Full Stack Web Development',
-    category: 'Frontend',
-    thumbnail: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400&h=225&fit=crop',
-    instructor: 'Michael Brown',
-    duration: '10 Modules',
-    difficulty: 'Beginner',
-    totalVideos: 10,
-    progress: 0
-  },
-  {
-    id: 5,
-    title: 'Aptitude & Logical Reasoning',
-    category: 'Aptitude',
-    thumbnail: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=400&h=225&fit=crop',
-    instructor: 'Emily Davis',
-    duration: '1 min per video',
-    difficulty: 'Beginner',
-    totalVideos: 12,
-    progress: 0
-  },
-  {
-    id: 6,
-    title: 'Data Structures Basics',
-    category: 'Core Subjects',
-    thumbnail: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?w=400&h=225&fit=crop',
-    instructor: 'Prof. David Lee',
-    duration: '10 Modules',
-    difficulty: 'Intermediate',
-    totalVideos: 10,
-    progress: 0
-  },
-];
+const categories = ['All', 'Frontend', 'Backend', 'AI/ML', 'Aptitude'];
 
 export default function Courses() {
   const navigate = useNavigate();
-  const [courses, setCourses] = useState(initialCourses);
+  const [searchParams] = useSearchParams();
+  const { toast } = useToast();
+
+  // Use Global Context
+  const { courses, progressMap, enroll } = useCourse();
+
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    const updatedCourses = initialCourses.map(course => {
-      // Use v2 key matching CourseDetails logic
-      const savedData = localStorage.getItem(`course_progress_${course.id}_v2`);
-      if (savedData) {
-        const parsed = JSON.parse(savedData);
-        // progress is already calculated 0-100 in saving logic
-        return { ...course, progress: parsed.progress || 0 };
-      }
-      return { ...course, progress: 0 };
-    });
-    setCourses(updatedCourses);
-  }, []);
+  // Local UI state for ephemeral transitions
+  const [enrollingId, setEnrollingId] = useState<number | null>(null);
+  const [successId, setSuccessId] = useState<number | null>(null);
 
-  const filteredCourses = courses.filter(course => {
+  const initialTab = searchParams.get('status') || 'all';
+
+  const handleStartLearning = (courseId: number) => {
+    navigate(`/courses/${courseId}`);
+  };
+
+  const handleEnroll = async (courseId: number) => {
+    // 1. Loading State
+    setEnrollingId(courseId);
+
+    try {
+      // 2. Call Context Action (Handling API + 3s Delay internally? Or here?)
+      // Plan said context handles logic, but let's double check context implementation. 
+      // Context has 3s delay.
+      await enroll(courseId);
+
+      // 3. Success State
+      setEnrollingId(null);
+      setSuccessId(courseId);
+
+      // 4. Clear success after 2-3s
+      setTimeout(() => {
+        setSuccessId(null);
+      }, 2500);
+
+    } catch (error: any) {
+      console.error("Enrollment failed", error);
+      setEnrollingId(null);
+
+      if (error?.response?.status === 401) {
+        toast({
+          title: "Session Expired",
+          description: "Please login again to enroll.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Enrollment Failed",
+          description: "Please try again later.",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  // Merge Course Data with Progress Data for display
+  const displayCourses = courses.map(course => {
+    const userProgress = progressMap[course.id];
+    return {
+      ...course,
+      isEnrolled: !!userProgress?.enrolled,
+      progress: userProgress?.progress || 0,
+      status: userProgress?.status || 'Not Started'
+    };
+  });
+
+  const filteredCourses = displayCourses.filter(course => {
     const matchesCategory = selectedCategory === 'All' || course.category === selectedCategory;
     const matchesSearch = course.title.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
-  const inProgressCourses = courses.filter(c => c.progress > 0 && c.progress < 100);
-  const completedCourses = courses.filter(c => c.progress === 100);
+  const inProgressCourses = filteredCourses.filter(c => c.progress > 0 && c.progress < 100);
+  const completedCourses = filteredCourses.filter(c => c.progress === 100);
+  const notStartedCourses = filteredCourses.filter(c => c.progress === 0);
+
+  // Helper to render Action Button
+  const renderActionButton = (course: any) => {
+    // 1. Enrollment Success Message (High Priority Override)
+    if (successId === course.id) {
+      return (
+        <div className="w-full py-2 bg-emerald-100 text-emerald-800 text-center rounded-md font-medium text-sm animate-pulse flex items-center justify-center gap-2">
+          <CheckCircle2 className="h-4 w-4" />
+          Successfully Enrolled ..!
+        </div>
+      );
+    }
+
+    // 2. Enrolling Loading State
+    if (enrollingId === course.id) {
+      return (
+        <Button disabled className="w-full font-medium shadow-sm cursor-not-allowed">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enrolling...
+        </Button>
+      );
+    }
+
+    // 3. Completed State
+    if (course.progress === 100) {
+      return (
+        <Button
+          className="w-full font-medium shadow-sm bg-emerald-600 hover:bg-emerald-700 text-white"
+          disabled
+        >
+          Completed ✅
+        </Button>
+      );
+    }
+
+    // 4. Enrolled / In Progress -> Start Learning
+    if (course.isEnrolled || course.progress > 0) {
+      return (
+        <Button
+          className="w-full font-medium shadow-sm bg-blue-600 hover:bg-blue-700 text-white"
+          onClick={() => handleStartLearning(course.id)}
+        >
+          {course.progress > 0 ? "Continue Learning" : "Start Learning"}
+        </Button>
+      );
+    }
+
+    // 5. Default -> Enroll Now
+    return (
+      <Button
+        className="w-full font-medium shadow-sm bg-emerald-600 hover:bg-emerald-700 text-white"
+        onClick={() => handleEnroll(course.id)}
+      >
+        Enroll Now
+      </Button>
+    );
+  };
 
   return (
     <FeatureGuard feature="courses">
@@ -137,16 +180,16 @@ export default function Courses() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-
           </div>
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="all" className="w-full">
-          <TabsList className="mb-6">
+        <Tabs defaultValue={initialTab} className="w-full">
+          <TabsList className="mb-6 flex flex-wrap h-auto gap-2">
             <TabsTrigger value="all">All Courses</TabsTrigger>
             <TabsTrigger value="progress">In Progress ({inProgressCourses.length})</TabsTrigger>
             <TabsTrigger value="completed">Completed ({completedCourses.length})</TabsTrigger>
+            <TabsTrigger value="not-started">Not Started ({notStartedCourses.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="all">
@@ -198,25 +241,17 @@ export default function Courses() {
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1.5">
                         <Clock className="h-4 w-4" />
-                        {course.duration}
+                        {course.total_duration ?
+                          `${Math.floor(course.total_duration / 3600)}h ${Math.round((course.total_duration % 3600) / 60)}m`
+                          : '0h 0m'}
                       </div>
                       <div className="flex items-center gap-1.5">
                         <BookOpen className="h-4 w-4" />
-                        {course.totalVideos || 10} Videos
+                        {course.total_modules || 0} Modules
                       </div>
                     </div>
 
-                    <Button
-                      className={`w-full font-medium shadow-sm ${course.progress === 100
-                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                        : course.progress > 0
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                          : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                        }`}
-                      onClick={() => navigate(`/courses/${course.id}`)}
-                    >
-                      {course.progress === 100 ? 'Completed ✅' : course.progress > 0 ? 'Continue Learning' : 'Learn Now'}
-                    </Button>
+                    {renderActionButton(course)}
                   </CardContent>
                 </Card>
               ))}
@@ -249,7 +284,7 @@ export default function Courses() {
                     </div>
                     <CardContent className="p-5 space-y-4">
                       <h3 className="font-semibold text-lg line-clamp-1">{course.title}</h3>
-                      <Button className="w-full" onClick={() => navigate(`/courses/${course.id}`)}>
+                      <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => navigate(`/courses/${course.id}`)}>
                         Continue Learning
                       </Button>
                     </CardContent>
@@ -295,8 +330,65 @@ export default function Courses() {
               </div>
             )}
           </TabsContent>
+
+          <TabsContent value="not-started">
+            {notStartedCourses.length === 0 ? (
+              <div className="text-center py-12">
+                <Circle className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-50" />
+                <h3 className="text-lg font-semibold mb-2">You've started everything!</h3>
+                <p className="text-muted-foreground mb-4">Incredible job! You have started every single course.</p>
+              </div>
+            ) : (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {/* Reuse same card structure as 'All' tab but filtered */}
+                {notStartedCourses.map((course, index) => (
+                  <Card
+                    key={course.id}
+                    className="overflow-hidden card-hover opacity-0 animate-fade-in border-border/50 shadow-sm hover:shadow-md transition-all duration-300"
+                    style={{ animationDelay: `${index * 0.1}s`, animationFillMode: 'forwards' }}
+                  >
+                    <div className="relative group">
+                      <img
+                        src={course.thumbnail}
+                        alt={course.title}
+                        className="w-full h-48 object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                      <Badge
+                        className="absolute top-3 right-3 shadow-sm"
+                        variant="outline"
+                      >
+                        Not Started
+                      </Badge>
+                    </div>
+                    <CardContent className="p-5 space-y-4">
+                      <div>
+                        <Badge variant="outline" className="mb-2 text-xs">{course.category}</Badge>
+                        <h3 className="font-semibold text-lg line-clamp-2 leading-tight min-h-[3rem] text-foreground">
+                          {course.title}
+                        </h3>
+                        <p className="text-sm text-muted-foreground mt-1">by {course.instructor}</p>
+                      </div>
+
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="h-4 w-4" />
+                          {course.duration}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <BookOpen className="h-4 w-4" />
+                          {course.totalVideos || 10} Videos
+                        </div>
+                      </div>
+
+                      {renderActionButton(course)}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
       </div>
-    </FeatureGuard>
+    </FeatureGuard >
   );
 }

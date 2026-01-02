@@ -18,15 +18,9 @@ import {
     User, Mail, Phone, MapPin, Calendar, Clock, Shield,
     Code, BookOpen, GraduationCap, Github, Linkedin,
     ExternalLink, Activity, Lock, Smartphone, Globe, Loader2,
-    CheckCircle2, XCircle, AlertCircle
+    XCircle, AlertCircle
 } from "lucide-react";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+import { useNavigate } from "react-router-dom";
 
 // --- Types ---
 
@@ -91,8 +85,8 @@ interface UserProfileDrawerProps {
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export default function UserProfileDrawer({ user, isOpen, onClose, onUserUpdated }: UserProfileDrawerProps) {
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState("overview");
-    const [loading, setLoading] = useState(false); // For actions
     const [fetching, setFetching] = useState(false); // For data load
 
     // Data State
@@ -102,7 +96,7 @@ export default function UserProfileDrawer({ user, isOpen, onClose, onUserUpdated
     const [codingStats, setCodingStats] = useState<CodingStats | null>(null);
     const [mentorshipHistory, setMentorshipHistory] = useState<MentorshipSession[]>([]);
 
-    // Edit State
+    // Edit State (now read-only display state)
     const [role, setRole] = useState("Student");
     const [status, setStatus] = useState("Active");
     const [gender, setGender] = useState("Male");
@@ -149,33 +143,6 @@ export default function UserProfileDrawer({ user, isOpen, onClose, onUserUpdated
         }
     };
 
-    const handleSaveChanges = async () => {
-        if (!user) return;
-        setLoading(true);
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:5000/api/admin/users/${user.id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({ role, status, gender })
-            });
-
-            if (!response.ok) throw new Error('Failed to update user');
-
-            toast({ title: "Success", description: "User profile updated successfully." });
-            onUserUpdated();
-            // Optional: Close drawer or just refresh data
-        } catch (error) {
-            console.error("Update error:", error);
-            toast({ title: "Error", description: "Failed to update profile", variant: "destructive" });
-        } finally {
-            setLoading(false);
-        }
-    };
-
     if (!user) return null;
 
     return (
@@ -216,6 +183,15 @@ export default function UserProfileDrawer({ user, isOpen, onClose, onUserUpdated
                                     {gender}
                                 </Badge>
                             </div>
+                            {user.role === 'Student' && (
+                                <Button
+                                    size="sm"
+                                    className="mt-4 bg-indigo-600 hover:bg-indigo-700 border-none text-white shadow-lg shadow-indigo-900/20"
+                                    onClick={() => navigate(`/admin/student-view/${user.id}`)}
+                                >
+                                    <Activity className="h-4 w-4 mr-2" /> View Student Dashboard
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -260,7 +236,7 @@ export default function UserProfileDrawer({ user, isOpen, onClose, onUserUpdated
                                                 </div>
                                                 <div className="flex justify-between py-1 border-b border-slate-50">
                                                     <span className="text-slate-500">Joined Date</span>
-                                                    <span className="text-slate-700">{profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'N/A'}</span>
+                                                    <span className="text-slate-700">{profile?.created_at ? new Date(profile.created_at).toLocaleString() : 'N/A'}</span>
                                                 </div>
                                                 <div className="flex justify-between py-1 border-b border-slate-50">
                                                     <span className="text-slate-500">College</span>
@@ -282,22 +258,41 @@ export default function UserProfileDrawer({ user, isOpen, onClose, onUserUpdated
                                                 <Globe className="h-4 w-4 text-slate-500" /> Online Presence
                                             </h3>
                                             <div className="space-y-3">
-                                                <div className="flex items-center gap-3 p-2 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer border border-transparent hover:border-slate-200">
+                                                <a
+                                                    href={profile?.github && profile.github !== 'Not connected' ? profile.github : undefined}
+                                                    target={profile?.github && profile.github !== 'Not connected' ? "_blank" : undefined}
+                                                    rel="noreferrer"
+                                                    className={`flex items-center gap-3 p-2 rounded-lg bg-slate-50 transition-colors border border-transparent 
+                                                        ${profile?.github && profile.github !== 'Not connected' ? 'hover:bg-slate-100 hover:border-slate-200 cursor-pointer' : 'opacity-70 cursor-not-allowed'}`}
+                                                    onClick={(e) => { if (!profile?.github || profile.github === 'Not connected') e.preventDefault(); }}
+                                                >
                                                     <Github className="h-5 w-5 text-slate-700" />
                                                     <div className="flex-1 overflow-hidden">
                                                         <p className="text-xs text-slate-500">GitHub</p>
-                                                        <p className="text-sm font-medium truncate">{profile?.github || "Not connected"}</p>
+                                                        <p className="text-sm font-medium truncate">
+                                                            {profile?.github && profile.github !== 'Not connected' ? profile.github : "Not connected"}
+                                                        </p>
                                                     </div>
                                                     <ExternalLink className="h-3 w-3 text-slate-400" />
-                                                </div>
-                                                <div className="flex items-center gap-3 p-2 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer border border-transparent hover:border-blue-200">
+                                                </a>
+
+                                                <a
+                                                    href={profile?.linkedin && profile.linkedin !== 'Not connected' ? profile.linkedin : undefined}
+                                                    target={profile?.linkedin && profile.linkedin !== 'Not connected' ? "_blank" : undefined}
+                                                    rel="noreferrer"
+                                                    className={`flex items-center gap-3 p-2 rounded-lg bg-blue-50 transition-colors border border-transparent 
+                                                        ${profile?.linkedin && profile.linkedin !== 'Not connected' ? 'hover:bg-blue-100 hover:border-blue-200 cursor-pointer' : 'opacity-70 cursor-not-allowed'}`}
+                                                    onClick={(e) => { if (!profile?.linkedin || profile.linkedin === 'Not connected') e.preventDefault(); }}
+                                                >
                                                     <Linkedin className="h-5 w-5 text-blue-700" />
                                                     <div className="flex-1 overflow-hidden">
                                                         <p className="text-xs text-blue-500">LinkedIn</p>
-                                                        <p className="text-sm font-medium text-blue-900 truncate">{profile?.linkedin || "Not connected"}</p>
+                                                        <p className="text-sm font-medium text-blue-900 truncate">
+                                                            {profile?.linkedin && profile.linkedin !== 'Not connected' ? profile.linkedin : "Not connected"}
+                                                        </p>
                                                     </div>
                                                     <ExternalLink className="h-3 w-3 text-blue-400" />
-                                                </div>
+                                                </a>
                                             </div>
                                         </div>
                                     </div>
@@ -464,61 +459,44 @@ export default function UserProfileDrawer({ user, isOpen, onClose, onUserUpdated
                                 {/* SECURITY TAB */}
                                 <TabsContent value="security" className="space-y-6 mt-0">
                                     <div className="bg-white p-5 rounded-xl border shadow-sm space-y-4">
-                                        <h3 className="font-semibold text-slate-900 border-b pb-2">Account Status</h3>
+                                        <h3 className="font-semibold text-slate-900 border-b pb-2">Account Status (View Only)</h3>
                                         <div className="flex items-center justify-between">
                                             <div className="space-y-0.5">
-                                                <Label className="text-base">Role</Label>
+                                                <Label className="text-base text-slate-700">Role</Label>
                                                 <p className="text-xs text-slate-500">Current access level for this user.</p>
                                             </div>
-                                            <Select value={role} onValueChange={setRole}>
-                                                <SelectTrigger className="w-[140px]">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="Student">Student</SelectItem>
-                                                    <SelectItem value="Instructor">Instructor</SelectItem>
-                                                    <SelectItem value="Admin">Admin</SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                            <Badge className={`${role === 'Admin' ? 'bg-purple-100 text-purple-700 hover:bg-purple-100' :
+                                                role === 'Instructor' ? 'bg-orange-100 text-orange-700 hover:bg-orange-100' :
+                                                    'bg-blue-100 text-blue-700 hover:bg-blue-100'
+                                                } text-sm px-3 py-1 border-0 rounded-md`}>
+                                                {role}
+                                            </Badge>
                                         </div>
                                         <div className="flex items-center justify-between">
                                             <div className="space-y-0.5">
-                                                <Label className="text-base">Account Status</Label>
+                                                <Label className="text-base text-slate-700">Account Status</Label>
                                                 <p className="text-xs text-slate-500">Status determines login ability.</p>
                                             </div>
-                                            <Select value={status} onValueChange={setStatus}>
-                                                <SelectTrigger className="w-[140px]">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="Active">Active</SelectItem>
-                                                    <SelectItem value="Inactive">Inactive</SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                            <Badge variant="outline" className={`${status === 'Active' ? 'text-green-600 bg-green-50 border-green-200' :
+                                                'text-red-600 bg-red-50 border-red-200'
+                                                } text-sm px-3 py-1 rounded-md`}>
+                                                {status}
+                                            </Badge>
                                         </div>
                                         <div className="flex items-center justify-between">
                                             <div className="space-y-0.5">
-                                                <Label className="text-base">Gender</Label>
+                                                <Label className="text-base text-slate-700">Gender</Label>
                                                 <p className="text-xs text-slate-500">Gender identity.</p>
                                             </div>
-                                            <Select value={gender} onValueChange={setGender}>
-                                                <SelectTrigger className="w-[140px]">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="Male">Male</SelectItem>
-                                                    <SelectItem value="Female">Female</SelectItem>
-                                                    <SelectItem value="Other">Other</SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                            <span className="text-sm font-medium text-slate-700 bg-slate-100 px-3 py-1 rounded-md">
+                                                {gender}
+                                            </span>
                                         </div>
                                     </div>
 
-
-
-                                    <Button onClick={handleSaveChanges} disabled={loading} className="w-full bg-slate-900 hover:bg-slate-800 h-12 text-md">
-                                        {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-                                        Save Changes
+                                    <Button disabled className="w-full bg-slate-100 text-slate-400 hover:bg-slate-100 cursor-not-allowed border h-12 text-md">
+                                        <Lock className="mr-2 h-4 w-4" />
+                                        No editable fields
                                     </Button>
                                 </TabsContent>
                             </>

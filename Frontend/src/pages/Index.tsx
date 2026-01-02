@@ -64,7 +64,7 @@ export default function Index() {
 
 
       {/* Unified Hero & Features Section with SaaS Background */}
-      <div className="relative w-full bg-white isolate">
+      <div className="relative w-full bg-[#0b0a1f] isolate">
         <SaaSBackground />
 
         {/* Hero Section */}
@@ -77,16 +77,16 @@ export default function Index() {
               {/* Left Content */}
               <div className="flex flex-col items-center lg:items-start text-center lg:text-left order-1 lg:order-1 max-w-2xl lg:max-w-none mx-auto lg:mx-0 mt-0 lg:mt-4">
 
-                <h1 className="text-4xl md:text-5xl lg:text-[4.5rem] font-bold tracking-tight text-slate-900 mb-4 md:mb-6 leading-[1.15] lg:leading-[1.1] drop-shadow-sm flex flex-col gap-1 md:gap-2">
+                <h1 className="text-4xl md:text-5xl lg:text-[4.5rem] font-bold tracking-tight text-white mb-4 md:mb-6 leading-[1.15] lg:leading-[1.1] drop-shadow-sm flex flex-col gap-1 md:gap-2">
                   <span className="block">Scale Your Learning.</span>
 
                   {/* Static Blue Gradient Text */}
-                  <span className="block bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent pb-1 md:pb-2">
+                  <span className="block bg-gradient-to-r from-blue-400 via-indigo-400 to-cyan-300 bg-clip-text text-transparent pb-1 md:pb-2">
                     Power the Enterprise.
                   </span>
                 </h1>
 
-                <p className="text-lg md:text-xl text-slate-600 mb-4 md:mb-10 leading-relaxed max-w-xl lg:max-w-full font-medium">
+                <p className="text-lg md:text-xl text-slate-400 mb-4 md:mb-10 leading-relaxed max-w-xl lg:max-w-full font-medium">
                   Get free access to learning tools, coding platforms, and career opportunities using Prolync Student Workspace.
                 </p>
 
@@ -103,13 +103,13 @@ export default function Index() {
 
                 {/* "Go premium" Link with Arrow Box */}
                 <div
-                  className="flex items-center gap-3 group cursor-pointer w-fit p-2 -ml-2 rounded-lg hover:bg-slate-100 transition-colors"
+                  className="flex items-center gap-3 group cursor-pointer w-fit p-2 -ml-2 rounded-lg hover:bg-slate-800/50 transition-colors"
                   onClick={() => navigate('/pricing')}
                 >
-                  <div className="h-6 w-6 bg-slate-100 rounded-md flex items-center justify-center group-hover:bg-blue-600 transition-colors shadow-sm ring-1 ring-slate-200">
-                    <ArrowRight className="h-3.5 w-3.5 text-blue-600 group-hover:text-white" />
+                  <div className="h-6 w-6 bg-slate-800 rounded-md flex items-center justify-center group-hover:bg-blue-600 transition-colors shadow-sm ring-1 ring-slate-700">
+                    <ArrowRight className="h-3.5 w-3.5 text-blue-400 group-hover:text-white" />
                   </div>
-                  <span className="text-base font-semibold text-slate-600 underline-offset-4 group-hover:text-slate-900 transition-colors">
+                  <span className="text-base font-semibold text-slate-400 underline-offset-4 group-hover:text-white transition-colors">
                     Go premium. See plans and pricing
                   </span>
                 </div>

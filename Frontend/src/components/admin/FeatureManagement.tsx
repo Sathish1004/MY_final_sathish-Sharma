@@ -17,7 +17,17 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface FeatureFlag {
     id: number;
@@ -31,6 +41,19 @@ export default function FeatureManagement() {
     const [features, setFeatures] = useState<FeatureFlag[]>([]);
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
+
+    const [confirmDialog, setConfirmDialog] = useState<{
+        isOpen: boolean;
+        featureKey: string;
+        currentStatus: boolean;
+        featureName: string;
+    }>({
+        isOpen: false,
+        featureKey: '',
+        currentStatus: false,
+        featureName: ''
+    });
+    const [confirmationText, setConfirmationText] = useState("");
 
     const fetchFeatures = async () => {
         try {
@@ -52,13 +75,30 @@ export default function FeatureManagement() {
         fetchFeatures();
     }, []);
 
-    const handleToggleFeature = async (featureKey: string, currentStatus: boolean) => {
+    const initiateToggle = (feature: FeatureFlag) => {
+        setConfirmDialog({
+            isOpen: true,
+            featureKey: feature.feature_key,
+            currentStatus: feature.is_enabled,
+            featureName: feature.feature_name
+        });
+        setConfirmationText("");
+    };
+
+    const handleConfirmToggle = async () => {
+        const { featureKey, currentStatus } = confirmDialog;
         const newStatus = !currentStatus;
+        const requiredText = newStatus ? "PERMANENTLY ENABLE" : "PERMANENTLY HIDE";
+
+        if (confirmationText !== requiredText) return;
 
         // Optimistic update
         setFeatures(prev => prev.map(f =>
             f.feature_key === featureKey ? { ...f, is_enabled: newStatus } : f
         ));
+
+        // Close dialog immediately
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
 
         try {
             const response = await fetch(`${import.meta.env.VITE_API_URL}/api/features/admin/${featureKey}`, {
@@ -100,6 +140,9 @@ export default function FeatureManagement() {
         );
     }
 
+    const requiredText = !confirmDialog.currentStatus ? "PERMANENTLY ENABLE" : "PERMANENTLY HIDE";
+    const isConfirmEnabled = confirmationText === requiredText;
+
     return (
         <Card>
             <CardHeader>
@@ -132,7 +175,7 @@ export default function FeatureManagement() {
                                     <div className="flex justify-end items-center">
                                         <Switch
                                             checked={feature.is_enabled}
-                                            onCheckedChange={() => handleToggleFeature(feature.feature_key, feature.is_enabled)}
+                                            onCheckedChange={() => initiateToggle(feature)}
                                         />
                                     </div>
                                 </TableCell>
@@ -147,6 +190,51 @@ export default function FeatureManagement() {
                         )}
                     </TableBody>
                 </Table>
+
+                <Dialog open={confirmDialog.isOpen} onOpenChange={(open) => !open && setConfirmDialog(prev => ({ ...prev, isOpen: false }))}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2 text-red-600">
+                                <AlertTriangle className="h-5 w-5" />
+                                {confirmDialog.currentStatus ? "Hide Feature" : "Enable Feature"}
+                            </DialogTitle>
+                            <DialogDescription>
+                                {confirmDialog.currentStatus
+                                    ? "This feature will be permanently hidden from the student dashboard."
+                                    : "This feature will be permanently enabled for students."}
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <p className="text-sm font-medium text-slate-700">
+                                    Type <span className="font-mono font-bold text-red-600 select-none">{requiredText}</span> to confirm:
+                                </p>
+                                <Input
+                                    value={confirmationText}
+                                    onChange={(e) => setConfirmationText(e.target.value)}
+                                    placeholder={`Type ${requiredText} to confirm`}
+                                    className="font-mono"
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button
+                                variant="outline"
+                                onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant={confirmDialog.currentStatus ? "destructive" : "default"}
+                                onClick={handleConfirmToggle}
+                                disabled={!isConfirmEnabled}
+                                className={!confirmDialog.currentStatus ? "bg-emerald-600 hover:bg-emerald-700" : ""}
+                            >
+                                {confirmDialog.currentStatus ? "Hide Feature" : "Enable Feature"}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </CardContent>
         </Card>
     );

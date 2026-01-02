@@ -29,6 +29,7 @@ import {
 import { cn } from '@/lib/utils';
 import OnboardingOverlay from "../OnboardingOverlay";
 import { NotificationCenter } from "../NotificationCenter";
+import { DashboardFooter } from "@/components/common/DashboardFooter";
 
 const navItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, id: 'nav-item-dashboard' },
@@ -201,6 +202,7 @@ export default function DashboardLayout() {
         {/* Page content */}
         <div className="flex-1 p-4 md:p-6 overflow-auto">
           <Outlet />
+          <DashboardFooter />
         </div>
       </main>
     </div>

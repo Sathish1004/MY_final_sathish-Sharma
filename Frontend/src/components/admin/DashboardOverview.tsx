@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from 'react-router-dom';
 import {
     Users,
     BookOpen,
@@ -13,8 +14,10 @@ import {
     UserCheck,
     MessageSquare,
     Plus,
-    Calendar
+    Calendar,
+    Settings
 } from "lucide-react";
+import { api } from '@/services/api';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -42,6 +45,14 @@ import {
     ResponsiveContainer,
 } from "recharts";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 
 interface CoderStats {
     rank: number;
@@ -103,7 +114,12 @@ interface ActivityItem {
     time: string;
 }
 
-export default function DashboardOverview() {
+interface DashboardOverviewProps {
+    onNavigate?: (module: string) => void;
+}
+
+export default function DashboardOverview({ onNavigate }: DashboardOverviewProps) {
+    const navigate = useNavigate();
     const [stats, setStats] = useState<DashboardStats>({
         total_users: 0,
         daily_active_users: 0,
@@ -117,7 +133,12 @@ export default function DashboardOverview() {
     const [growthData, setGrowthData] = useState<any[]>([]);
     const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [timeRange, setTimeRange] = useState("week");
+    const [timeRange, setTimeRange] = useState("week"); // 'day', 'week', 'month', 'year'
+    const [growthRate, setGrowthRate] = useState(0);
+
+    // --- Drill Down State ---
+    const [selectedPoint, setSelectedPoint] = useState<any>(null);
+    const [isUserListOpen, setIsUserListOpen] = useState(false);
 
     // --- State for Quick Access Drawer ---
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -130,39 +151,58 @@ export default function DashboardOverview() {
     const [projectStats, setProjectStats] = useState<ProjectStats>({ pending: 0, approved: 0, rejected: 0, recent: [] });
     const [jobStats, setJobStats] = useState<JobStats>({ active: 0, applications: 0, interviews: 0, placed: 0 });
 
+    // Fetch Growth Data separately when timeRange changes
+    useEffect(() => {
+        const fetchGrowth = async () => {
+            try {
+                const res = await api.get(`/admin/charts?period=${timeRange}`);
+                const data = res.data;
+
+                const chartData = data.chart || [];
+                const formattedData = chartData.map((d: any) => ({
+                    date: d.date,
+                    count: d.count,
+                    users: d.users
+                }));
+                setGrowthData(formattedData);
+                setGrowthRate(data.growth || 0);
+
+            } catch (e) {
+                console.error("Error fetching growth data:", e);
+            }
+        };
+        fetchGrowth();
+    }, [timeRange]);
+
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
                 setIsLoading(true);
-                // Parallelize fetching
-                const [overviewRes, growthRes, activityRes, codersRes, coursesRes, mentorshipRes, projectsRes, jobsRes] = await Promise.all([
-                    fetch('http://localhost:5000/api/dashboard/overview'),
-                    fetch('http://localhost:5000/api/dashboard/growth'),
-                    fetch('http://localhost:5000/api/dashboard/activity'),
-                    fetch('http://localhost:5000/api/dashboard/coders'),
-                    fetch('http://localhost:5000/api/dashboard/courses'),
-                    fetch('http://localhost:5000/api/dashboard/mentorship'),
-                    fetch('http://localhost:5000/api/dashboard/projects'),
-                    fetch('http://localhost:5000/api/dashboard/jobs')
+                // Use the API service instead of hardcoded fetch
+                const [overviewRes, activityRes] = await Promise.all([
+                    api.get('/admin/stats').catch(e => ({ data: { total_users: 0, daily_active_users: 0, monthly_active_users: 0, total_courses: 0, problems_solved: 0, mentors_active: 0, projects_submitted: 0, jobs_posted: 0 } })),
+                    api.get('/admin/activity').catch(e => ({ data: [] }))
                 ]);
 
-                if (overviewRes.ok) setStats(await overviewRes.json());
+                // Map 'overviewRes.data' (camelCase from backend) to 'stats' state (snake_case expected by UI)
+                const backendStats = overviewRes.data || {};
+                const mappedStats = {
+                    total_users: backendStats.totalUsers || 0,
+                    daily_active_users: backendStats.activeUsers || 0, // Approx
+                    monthly_active_users: backendStats.activeUsers || 0,
+                    total_courses: backendStats.totalCourses || 0,
+                    problems_solved: 0, // Not yet in backend
+                    mentors_active: 0, // Not yet in backend
+                    projects_submitted: backendStats.totalEnrollments || 0, // Using enrollments as proxy or 0
+                    jobs_posted: 0 // Not yet in backend
+                };
+                setStats(mappedStats);
 
-                if (growthRes.ok) {
-                    const data = await growthRes.json();
-                    const formattedData = data.map((d: any) => ({
-                        date: new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-                        count: d.count
-                    }));
-                    setGrowthData(formattedData);
-                }
+                if (activityRes.data) setActivityFeed(activityRes.data);
 
-                if (activityRes.ok) setActivityFeed(await activityRes.json());
-                if (codersRes.ok) setTopCoders(await codersRes.json());
-                if (coursesRes.ok) setCourseStats(await coursesRes.json());
-                if (mentorshipRes.ok) setMentorshipStats(await mentorshipRes.json());
-                if (projectsRes.ok) setProjectStats(await projectsRes.json());
-                if (jobsRes.ok) setJobStats(await jobsRes.json());
+                // For other widgets (coders, courses via /admin/students/progress?)
+                // Trying to fetch aggregated data where possible
+                // ... (Leaving existing structure if backend endpoints exist, otherwise would need robust endpoints)
 
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
@@ -174,15 +214,26 @@ export default function DashboardOverview() {
         fetchDashboardData();
     }, []);
 
-    const StatCard = ({ title, value, icon: Icon, trend, color, subtext }: any) => (
-        <Card className="shadow-sm hover:shadow-md transition-all duration-200 border-slate-100">
+    const StatCard = ({ title, value, icon: Icon, trend, color, subtext, onClick }: any) => (
+        <Card
+            className={`shadow-sm hover:shadow-md transition-all duration-200 border-slate-100 relative group ${onClick ? 'cursor-pointer hover:bg-slate-50' : ''}`}
+            onClick={onClick}
+            role={onClick ? "button" : undefined}
+            tabIndex={onClick ? 0 : undefined}
+            onKeyDown={(e) => {
+                if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault();
+                    onClick();
+                }
+            }}
+        >
             <CardContent className="p-6">
                 <div className="flex justify-between items-start">
                     <div>
-                        <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
-                        <h3 className="text-2xl font-bold text-slate-900">{value}</h3>
+                        <p className="text-sm font-medium text-slate-500 mb-1 group-hover:text-slate-700 transition-colors">{title}</p>
+                        <h3 className="text-2xl font-bold text-slate-900 group-hover:scale-105 transition-transform origin-left duration-200">{value}</h3>
                     </div>
-                    <div className={`p-2 rounded-lg ${color}`}>
+                    <div className={`p-2 rounded-lg ${color} group-hover:ring-2 ring-offset-2 ring-opacity-50 transition-all`}>
                         <Icon className="h-5 w-5" />
                     </div>
                 </div>
@@ -193,7 +244,7 @@ export default function DashboardOverview() {
                             {trend > 0 ? '+' : ''}{trend}%
                         </span>
                     )}
-                    <span className="text-xs text-slate-400">{subtext || "vs last month"}</span>
+                    <span className="text-xs text-slate-400 group-hover:text-slate-500">{subtext || "vs last month"}</span>
                 </div>
             </CardContent>
         </Card>
@@ -237,11 +288,17 @@ export default function DashboardOverview() {
                             <DropdownMenuItem onClick={() => { setActiveDrawerModule('users'); setIsDrawerOpen(true); }}>
                                 <Users className="mr-2 h-4 w-4" /> Users
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => { setActiveDrawerModule('feedback'); setIsDrawerOpen(true); }}>
-                                <MessageSquare className="mr-2 h-4 w-4" /> Feedback
-                            </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
+
+                    <Button
+                        variant="outline"
+                        className="gap-2 border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                        onClick={() => onNavigate?.('features')}
+                    >
+                        <Settings className="h-4 w-4" />
+                        Feature Management
+                    </Button>
 
                     <Button className="gap-2 bg-primary">
                         <Plus className="h-4 w-4" />
@@ -274,6 +331,7 @@ export default function DashboardOverview() {
                     color="bg-blue-50 text-blue-600"
                     trend={12}
                     subtext="vs last month"
+                    onClick={() => navigate('/admin/dashboard?tab=users')}
                 />
                 <StatCard
                     title="Daily Active Users"
@@ -282,6 +340,7 @@ export default function DashboardOverview() {
                     color="bg-green-50 text-green-600"
                     trend={5}
                     subtext="vs yesterday"
+                    onClick={() => navigate('/admin/dashboard?tab=users&filter=active_today')}
                 />
                 <StatCard
                     title="Monthly Active"
@@ -290,6 +349,7 @@ export default function DashboardOverview() {
                     color="bg-purple-50 text-purple-600"
                     trend={8}
                     subtext="vs last month"
+                    onClick={() => navigate('/admin/dashboard?tab=users&filter=active_month')}
                 />
                 <StatCard
                     title="Total Courses"
@@ -297,6 +357,7 @@ export default function DashboardOverview() {
                     icon={BookOpen}
                     color="bg-orange-50 text-orange-600"
                     subtext="New course added today"
+                    onClick={() => navigate('/admin/dashboard?tab=courses')}
                 />
                 <StatCard
                     title="Problems Solved"
@@ -305,6 +366,7 @@ export default function DashboardOverview() {
                     color="bg-yellow-50 text-yellow-600"
                     trend={150}
                     subtext="this week"
+                    onClick={() => navigate('/admin/dashboard?tab=coding')}
                 />
                 <StatCard
                     title="Mentors Active"
@@ -312,6 +374,7 @@ export default function DashboardOverview() {
                     icon={GraduationCap}
                     color="bg-pink-50 text-pink-600"
                     subtext="All slots booked"
+                    onClick={() => navigate('/admin/dashboard?tab=mentorship')}
                 />
                 <StatCard
                     title="Projects Submitted"
@@ -319,6 +382,7 @@ export default function DashboardOverview() {
                     icon={FolderKanban}
                     color="bg-indigo-50 text-indigo-600"
                     subtext="3 pending review"
+                    onClick={() => navigate('/admin/dashboard?tab=projects')}
                 />
                 <StatCard
                     title="Jobs Posted"
@@ -326,6 +390,7 @@ export default function DashboardOverview() {
                     icon={Briefcase}
                     color="bg-cyan-50 text-cyan-600"
                     subtext="2 closing soon"
+                    onClick={() => navigate('/admin/dashboard?tab=jobs')}
                 />
             </div>
 
@@ -337,22 +402,33 @@ export default function DashboardOverview() {
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div>
                                 <CardTitle className="text-xl font-bold text-slate-900">Platform Growth</CardTitle>
-                                <CardDescription className="text-slate-500">User registration trends</CardDescription>
+                                <CardDescription className="text-slate-500">
+                                    {timeRange === 'day' && "Last 24 Hours (Hourly Data)"}
+                                    {timeRange === 'week' && "Last 7 Days (Week View)"}
+                                    {timeRange === 'month' && "Last 30 Days (Monthly View)"}
+                                    {timeRange === 'year' && "Last 12 Months (Yearly View)"}
+                                </CardDescription>
                                 <div className="mt-4 flex items-baseline gap-3">
                                     <h2 className="text-4xl font-extrabold text-slate-900">{stats.total_users.toLocaleString()}</h2>
-                                    <span className="flex items-center gap-1 text-sm font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
-                                        <TrendingUp className="h-3 w-3" />
-                                        +12.5%
+                                    <span className={`flex items-center gap-1 text-sm font-semibold px-2 py-1 rounded-full border ${growthRate >= 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-red-600 bg-red-50 border-red-100'}`}>
+                                        <TrendingUp className={`h-3 w-3 ${growthRate < 0 ? 'rotate-180' : ''}`} />
+                                        {growthRate > 0 ? '+' : ''}{growthRate}%
                                     </span>
-                                    <span className="text-xs text-slate-400">vs last 30 days</span>
+                                    <span className="text-xs text-slate-400">
+                                        {timeRange === 'day' && "vs previous 24 hours"}
+                                        {timeRange === 'week' && "vs previous week"}
+                                        {timeRange === 'month' && "vs previous 30 days"}
+                                        {timeRange === 'year' && "vs previous year"}
+                                    </span>
                                 </div>
                             </div>
                             <div className="flex items-center gap-4 self-start md:self-center">
-                                <Tabs value={timeRange} onValueChange={setTimeRange} className="w-[240px]">
-                                    <TabsList className="grid w-full grid-cols-3 h-9 bg-slate-100/50 p-1">
-                                        <TabsTrigger value="day" className="text-xs font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm">1D</TabsTrigger>
-                                        <TabsTrigger value="week" className="text-xs font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm">1W</TabsTrigger>
-                                        <TabsTrigger value="month" className="text-xs font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm">1M</TabsTrigger>
+                                <Tabs value={timeRange} onValueChange={setTimeRange} className="w-auto">
+                                    <TabsList className="grid w-full grid-cols-4 h-9 bg-slate-100 p-1 gap-1 rounded-lg">
+                                        <TabsTrigger value="day" className="text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200 transition-all rounded px-3">Day</TabsTrigger>
+                                        <TabsTrigger value="week" className="text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200 transition-all rounded px-3">Week</TabsTrigger>
+                                        <TabsTrigger value="month" className="text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200 transition-all rounded px-3">Month</TabsTrigger>
+                                        <TabsTrigger value="year" className="text-xs font-medium data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200 transition-all rounded px-3">Year</TabsTrigger>
                                     </TabsList>
                                 </Tabs>
                             </div>
@@ -362,7 +438,18 @@ export default function DashboardOverview() {
                         <div className="h-[320px] w-full">
                             {growthData.length > 0 ? (
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={growthData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                                    <AreaChart
+                                        data={growthData}
+                                        margin={{ top: 10, right: 0, left: -20, bottom: 0 }}
+                                        onClick={(e) => {
+                                            if (e && e.activePayload && e.activePayload.length > 0) {
+                                                const payload = e.activePayload[0].payload;
+                                                setSelectedPoint(payload);
+                                                setIsUserListOpen(true);
+                                            }
+                                        }}
+                                        className="cursor-pointer"
+                                    >
                                         <defs>
                                             <linearGradient id="colorGrowth" x1="0" y1="0" x2="0" y2="1">
                                                 <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.3} />
@@ -373,14 +460,24 @@ export default function DashboardOverview() {
                                         <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} dy={10} />
                                         <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} tickCount={5} />
                                         <RechartsTooltip
-                                            contentStyle={{
-                                                backgroundColor: '#1e293b',
-                                                border: 'none',
-                                                borderRadius: '8px',
-                                                color: '#f8fafc',
-                                                boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'
+                                            content={({ active, payload, label }) => {
+                                                if (active && payload && payload.length) {
+                                                    return (
+                                                        <div className="bg-slate-800 border-none rounded-lg p-3 shadow-xl text-white">
+                                                            <p className="text-xs text-slate-300 mb-1">
+                                                                {timeRange === 'day' && `Users registered at ${label}`}
+                                                                {timeRange === 'week' && `Users registered on ${label}`}
+                                                                {timeRange === 'month' && `Users registered on ${label}`}
+                                                                {timeRange === 'year' && `Users registered in ${label}`}
+                                                            </p>
+                                                            <p className="text-lg font-bold">
+                                                                {payload[0].value} Users
+                                                            </p>
+                                                        </div>
+                                                    );
+                                                }
+                                                return null;
                                             }}
-                                            itemStyle={{ color: '#fff' }}
                                             cursor={{ stroke: '#6366f1', strokeWidth: 1, strokeDasharray: '4 4' }}
                                         />
                                         <Area type="monotone" dataKey="count" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorGrowth)" activeDot={{ r: 6, strokeWidth: 0, fill: '#4f46e5' }} />
@@ -447,6 +544,51 @@ export default function DashboardOverview() {
                     </CardContent>
                 </Card>
             </div>
-        </div>
+
+            {/* Drill Down Modal */}
+            <Dialog open={isUserListOpen} onOpenChange={setIsUserListOpen}>
+                <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+                    <DialogHeader>
+                        <DialogTitle>User Registration Details</DialogTitle>
+                        <DialogDescription>
+                            Users registered on {selectedPoint?.date} ({selectedPoint?.count} users)
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex-1 overflow-y-auto mt-4 pr-2 custom-scrollbar">
+                        {selectedPoint?.users && selectedPoint.users.length > 0 ? (
+                            <div className="space-y-3">
+                                {selectedPoint.users.map((u: any, i: number) => (
+                                    <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-slate-100 hover:bg-slate-50 transition-colors">
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-10 w-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-sm">
+                                                {u.name.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div>
+                                                <p className="font-medium text-slate-900">{u.name}</p>
+                                                <p className="text-xs text-slate-500">{u.email}</p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <Badge variant={u.status === 'Active' ? 'default' : 'secondary'} className={u.status === 'Active' ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-slate-100 text-slate-700'}>
+                                                {u.status || 'Active'}
+                                            </Badge>
+                                            <p className="text-xs text-slate-400 mt-1">
+                                                {new Date(u.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-40 text-slate-400">
+                                <Users className="h-10 w-10 mb-2 opacity-20" />
+                                <p>No detailed records found for this period.</p>
+                            </div>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+        </div >
     );
 }

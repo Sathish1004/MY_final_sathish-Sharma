@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
     Clock,
@@ -14,276 +14,300 @@ import {
     Award,
     Globe,
     MonitorPlay,
-    Download,
     Users,
     ChevronRight,
-    RotateCcw,
     Lock,
-    PlayCircle,
-    PauseCircle
+    PlayCircle
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { api } from '@/services/api';
+import { useToast } from '@/components/ui/use-toast';
+import { useCourse } from '@/contexts/CourseContext';
 import CertificateModal from '@/components/CertificateModal';
+import { COURSES_DATA } from '@/data/courses';
 
-// Mock Data Generator
-const generateModules = (courseTitle: string, category: string) => {
-    const standardTitles = [
-        'Introduction',
-        'Core Concepts',
-        'Practical Example',
-        'Intermediate Concepts',
-        'Hands-on Demo',
-        'Problem Solving',
-        'Advanced Topic',
-        'Real-world Use Case',
-        'Summary',
-        'Final Recap'
-    ];
-
-    const VIDEO_POOL = [
-        'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-        'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-        'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-        'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-        'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
-        'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
-        'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
-        'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
-        'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
-        'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4'
-    ];
-
-    return standardTitles.map((title, i) => ({
-        id: i + 1,
-        title: `${category} Module: ${title}`,
-        duration: '10 min',
-        videoUrl: VIDEO_POOL[i % VIDEO_POOL.length]
-    }));
-};
-
-const getCourseData = (id: string | undefined) => {
-    const courseId = parseInt(id || '1');
-
-    // Base common data
-    const common = {
-        role: 'Senior Instructor',
-        rating: 5.0,
-        students: 1,
-        description: 'Master specialized skills with this comprehensive course designed for both beginners and intermediate learners. You will build real-world projects and gain deep insights into industry best practices.'
-    };
-
-    const specificData: Record<number, any> = {
-        1: { title: 'React.js Complete Guide', category: 'Frontend', instructor: 'John Smith', difficulty: 'Intermediate' },
-        2: { title: 'Node.js & Express Masterclass', category: 'Backend', instructor: 'Sarah Johnson', difficulty: 'Intermediate' },
-        3: { title: 'Machine Learning Fundamentals', category: 'AI/ML', instructor: 'Dr. Alex Chen', difficulty: 'Advanced' },
-        4: { title: 'Full Stack Web Development', category: 'Frontend', instructor: 'Michael Brown', difficulty: 'Beginner' },
-        5: { title: 'Aptitude & Logical Reasoning', category: 'Aptitude', instructor: 'Emily Davis', difficulty: 'Beginner' },
-        6: { title: 'Data Structures Basics', category: 'Core Subjects', instructor: 'Prof. David Lee', difficulty: 'Intermediate' }
-    };
-
-    const courseInfo = specificData[courseId] || specificData[1];
-    const modules = generateModules(courseInfo.title, courseInfo.category);
-
-    // Dynamic duration calculation
-    let totalDuration = '100 min'; // 10 mins * 10 modules
-
-    return {
-        id: courseId,
-        ...common,
-        ...courseInfo,
-        thumbnail: '/ai_tutor_avatar.png',
-        duration: totalDuration,
-        modules,
-        learn: [
-            'Build powerful, fast, user-friendly applications',
-            'Provide amazing user experiences by leveraging the power of modern stacks',
-            'Apply for high-paid jobs or work as a freelancer in one the most demanded sectors',
-            'Master key concepts and best practices'
-        ],
-        requirements: [
-            'Basic understanding of programming fundamentals',
-            'A computer with internet access',
-            'Passion for learning and growth'
-        ]
+// Debounce helper
+const debounce = (func: Function, wait: number) => {
+    let timeout: NodeJS.Timeout;
+    return (...args: any[]) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func(...args), wait);
     };
 };
 
 export default function CourseDetails() {
     const { user } = useAuth();
+    const { updateProgress } = useCourse();
     const { courseId } = useParams();
     const navigate = useNavigate();
-
     const location = useLocation();
+    const { toast } = useToast();
 
-    // Data State
+    // State
     const [course, setCourse] = useState<any>(null);
+    const [modules, setModules] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-
-    // Progress State
-    const [completedVideos, setCompletedVideos] = useState<number[]>([]);
-    const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+    const [currentModuleIndex, setCurrentModuleIndex] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
+
+    // Progress Map: { moduleId: { watched_seconds, is_completed } }
+    const [moduleProgress, setModuleProgress] = useState<Record<number, any>>({});
+
+    // Course Level Progress
+    const [courseProgressPercent, setCourseProgressPercent] = useState(0);
+    const [isCourseCompleted, setIsCourseCompleted] = useState(false);
+
     const [showCertificate, setShowCertificate] = useState(false);
-
-    // Derived State
-    const totalVideos = course?.modules?.length || 10;
-    const progress = Math.round((completedVideos.length / totalVideos) * 100);
-    const isCourseCompleted = completedVideos.length === totalVideos;
-
-    // Certificate Details
-    const certId = `CERT-${courseId}-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000)}`;
-    const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const [showEnrollmentSuccess, setShowEnrollmentSuccess] = useState(false);
 
     const videoRef = useRef<HTMLVideoElement>(null);
+    const progressUpdateQueue = useRef<Record<number, number>>({});
 
+    // Fetch Data
     useEffect(() => {
-        setIsLoading(true);
-        const data = getCourseData(courseId);
-        setCourse(data);
+        const loadData = async () => {
+            if (!courseId) return;
+            setIsLoading(true);
+            try {
+                // 1. Course Details
+                const courseRes = await api.get(`/courses/${courseId}`);
+                let courseData = courseRes.data;
 
-        // Load progress
-        const savedData = localStorage.getItem(`course_progress_${courseId}_v2`); // v2 for new schema
-        let initialIndex = 0;
-        let completedIds: number[] = [];
+                // 2. Modules & Mock Enrichment
+                const modulesRes = await api.get(`/modules/course/${courseId}`);
+                let modulesData = modulesRes.data;
 
-        if (savedData) {
-            const { completed, lastIndex } = JSON.parse(savedData);
-            completedIds = completed || [];
-            // Validate index
-            const idx = lastIndex || 0;
-            initialIndex = idx < 10 ? idx : 0;
-        }
+                // --- MOCK DATA ENRICHMENT ---
+                // Find matching mock course by title or id
+                // We use title matching because mock IDs might differ or be used as seed
+                const mockCourse = COURSES_DATA.find(c => c.title === courseData.title) || COURSES_DATA.find(c => c.id === parseInt(courseId!));
 
-        // Deep link override (if coming from dashboard module click)
-        if (location.state?.moduleIndex !== undefined) {
-            initialIndex = location.state.moduleIndex;
-            // Update storage immediately to reflect this jump
-            const progressData = {
-                completed: completedIds,
-                lastIndex: initialIndex,
-                status: completedIds.length === 10 ? 'Completed' : 'In Progress',
-                progress: Math.round((completedIds.length / 10) * 100),
-                minutesConsumed: completedIds.length * 10,
-                lastUpdated: new Date().toISOString()
-            };
-            localStorage.setItem(`course_progress_${courseId}_v2`, JSON.stringify(progressData));
-        }
+                if (mockCourse) {
+                    // Enrich Course Metadata (Description, Learn, Requirements)
+                    courseData = {
+                        ...courseData,
+                        description: courseData.description || mockCourse.description,
+                        learn: (courseData.learn && courseData.learn.length > 0) ? courseData.learn : mockCourse.learn,
+                        requirements: (courseData.requirements && courseData.requirements.length > 0) ? courseData.requirements : mockCourse.requirements,
+                        level: courseData.level || mockCourse.difficulty,
+                        // If Duration is 0, use mock duration
+                        duration: (courseData.total_duration && courseData.total_duration > 0) ? `${Math.floor(courseData.total_duration / 60)} mins` : mockCourse.duration
+                    };
 
-        setCompletedVideos(completedIds);
-        setCurrentVideoIndex(initialIndex);
+                    // Enrich Modules if empty
+                    if (modulesData.length === 0 && mockCourse.totalVideos > 0) {
+                        // Generate mock modules
+                        modulesData = Array.from({ length: mockCourse.totalVideos }).map((_, i) => ({
+                            id: 99000 + i, // Fake IDs
+                            course_id: courseData.id,
+                            title: `Module ${String(i + 1).padStart(2, '0')}: ${mockCourse.learn?.[i % mockCourse.learn.length] || 'Topic Overview'}`,
+                            video_key: 'mock-video', // Needs handling in player
+                            duration_seconds: 900, // 15 mins default
+                            order_index: i
+                        }));
 
-        setIsLoading(false);
+                        // HYDRATION: Restore "Checked" status for mock modules based on saved Course Progress
+                        if (courseData.progress && courseData.progress > 0) {
+                            const completedCount = Math.round((courseData.progress / 100) * modulesData.length);
+                            modulesData.forEach((mod: any, index: number) => {
+                                if (index < completedCount) {
+                                    // We need to update the moduleProgress map later in the flow
+                                    // But setModuleProgress is state setter, we can't call it here synchronously comfortably
+                                    // We can defer it to the useEffect or store it in a temp var
+                                    // Actually we can just run a quick loop after setModules
+                                }
+                            });
+                        }
+                    }
+                }
+
+                setCourse(courseData);
+                setModules(modulesData);
+
+                // HYDRATION: Restore "Checked" status for mock modules based on saved Course Progress
+                // This ensures refresh doesn't wipe the green ticks for demo courses
+                if (modulesData.length > 0 && modulesData[0].video_key === 'mock-video' && courseData.progress > 0) {
+                    const completedCount = Math.round((courseData.progress / 100) * modulesData.length);
+                    const initialProgress: Record<number, any> = {};
+                    modulesData.forEach((mod: any, index: number) => {
+                        initialProgress[mod.id] = {
+                            is_completed: index < completedCount,
+                            watched_seconds: index < completedCount ? mod.duration_seconds : 0
+                        };
+                    });
+                    // Set local state
+                    setModuleProgress(prev => ({ ...prev, ...initialProgress }));
+                }
+
+                // 3. User Progress (Enrollment & Module Status)
+                // We'll fetch 'my-courses' to get overall status, but for module-level ticks we need granular data.
+                // We'll iterate modules or assume we start with 0 if stored.
+                // Optimally: Fetch /api/courses/:id/progress (User specific)
+                // Since we don't have a bulk module progress endpoint, we'll fetch individual progress lazily or use user_progress for overall.
+                // Wait, we need to show ticks on the playlist.
+                // Use `getModuleProgress` for each module? That's too many requests.
+                // Better: Update `moduleRoutes` to get all progress for a course. 
+                // For now, I'll fetch progress for the *current* module and trusted "completed_modules" count from course enrollments? No.
+                // I'll fetch `my-courses` to get the list of enrolled courses and their status.
+
+                const enrollmentRes = await api.get('/courses/my-courses');
+                const myCourse = enrollmentRes.data.find((c: any) => c.course_id === parseInt(courseId));
+
+                if (myCourse) {
+                    setCourseProgressPercent(myCourse.progress);
+                    setIsCourseCompleted(myCourse.status === 'Completed');
+                }
+
+                // If enrolled, we should probably fetch progress for all modules to show ticks.
+                // I'll add a quick helper in the component to fetch status for all modules in parallel (limit generic concurrency)
+                // Or just fetch for the visible ones.
+                // Ideally backend sends `is_completed` with modules list if user is logged in. But `getCourseModules` is public.
+                // I'll do a quick parallel fetch.
+                if (modulesRes.data.length > 0) {
+                    const progressData: Record<number, any> = {};
+                    await Promise.all(modulesRes.data.map(async (m: any) => {
+                        try {
+                            const pRes = await api.get(`/modules/${m.id}/progress`);
+                            progressData[m.id] = pRes.data;
+                        } catch (e) {
+                            progressData[m.id] = { watched_seconds: 0, is_completed: false };
+                        }
+                    }));
+                    setModuleProgress(progressData);
+
+                    // Find last watched or first incomplete
+                    // Check location state or find first non-completed
+                    if (location.state?.moduleIndex !== undefined) {
+                        setCurrentModuleIndex(location.state.moduleIndex);
+                    } else {
+                        const firstIncomplete = modulesRes.data.findIndex((m: any) => !progressData[m.id]?.is_completed);
+                        setCurrentModuleIndex(firstIncomplete >= 0 ? firstIncomplete : 0);
+                    }
+                }
+
+            } catch (error) {
+                console.error("Failed to load course", error);
+                toast({ title: "Error", description: "Could not load course details", variant: "destructive" });
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        loadData();
     }, [courseId, location.state]);
 
-    // Helper to log user activity
-    const logActivity = (type: 'VIDEO_WATCHED' | 'COURSE_COMPLETED', detail: string) => {
-        const activity = {
-            type,
-            detail,
-            courseName: course.title,
-            timestamp: new Date().toISOString()
-        };
-        const logs = JSON.parse(localStorage.getItem('user_activity_log') || '[]');
-        logs.unshift(activity); // Add to beginning
-        localStorage.setItem('user_activity_log', JSON.stringify(logs.slice(0, 50))); // Keep last 50
-    };
 
-    const saveProgress = (completed: number[], lastIndex: number) => {
-        const uniqueCompleted = Array.from(new Set(completed));
-        const progressPercentage = Math.round((uniqueCompleted.length / course.modules.length) * 100);
-        const isCompletedNow = uniqueCompleted.length === course.modules.length;
 
-        // Calculate minutes based on module duration logic (now all 10 mins)
-        let minutesConsumed = uniqueCompleted.length * 10;
+    // Update Progress Handler
+    const updateBackendProgress = useCallback(async (moduleId: number, seconds: number) => {
+        const currentMod = modules.find(m => m.id === moduleId);
+        const isMock = currentMod?.video_key === 'mock-video';
 
-        const progressData = {
-            completed: uniqueCompleted,
-            lastIndex,
-            status: isCompletedNow ? 'Completed' : 'In Progress',
-            progress: progressPercentage,
-            minutesConsumed,
-            lastUpdated: new Date().toISOString()
-        };
+        // Optimistic / Mock Handling
+        if (isMock) {
+            // Check completion (90% threshold)
+            // Fix: Use actual video duration if available, else fallback to metadata
+            // This prevents issues where mock video is shorter than metadata duration
+            let duration = currentMod?.duration_seconds || 900;
+            if (videoRef.current && videoRef.current.duration > 0) {
+                duration = videoRef.current.duration;
+            }
 
-        localStorage.setItem(`course_progress_${course.id}_v2`, JSON.stringify(progressData));
-        setCompletedVideos(uniqueCompleted);
+            const isCompleted = seconds >= (duration * 0.9);
 
-        // Check if just completed (compare new status with previous derived state)
-        const wasCompleted = completedVideos.length === course.modules.length;
-        if (isCompletedNow && !wasCompleted) {
-            logActivity('COURSE_COMPLETED', `Completed course: ${course.title}`);
+            if (isCompleted) {
+                setModuleProgress(prev => ({
+                    ...prev,
+                    [moduleId]: { ...prev[moduleId], is_completed: true, watched_seconds: seconds }
+                }));
+                // Update Global Context (Dashboard)
+                updateProgress(parseInt(courseId!), currentModuleIndex, moduleId, seconds / 60);
+            }
+            return;
         }
-    };
 
-    const handlePlay = () => {
-        if (videoRef.current) {
-            videoRef.current.play();
-            setIsPlaying(true);
+        // Real Backend Handling
+        try {
+            const res = await api.post(`/modules/${moduleId}/progress`, {
+                watchedSeconds: seconds,
+                courseId: parseInt(courseId!)
+            });
+
+            // Check if completed
+            if (res.data.isCompleted) {
+                setModuleProgress(prev => ({
+                    ...prev,
+                    [moduleId]: { ...prev[moduleId], is_completed: true, watched_seconds: seconds }
+                }));
+                // Update Global Context (Dashboard)
+                updateProgress(parseInt(courseId!), currentModuleIndex, moduleId, seconds / 60);
+            }
+        } catch (e) {
+            console.error("Progress sync failed", e);
+        }
+    }, [courseId, modules, currentModuleIndex, updateProgress]);
+
+    // Fix: Use Ref to avoid stale closure in debounce
+    const latestUpdateRef = useRef(updateBackendProgress);
+    useEffect(() => {
+        latestUpdateRef.current = updateBackendProgress;
+    }, [updateBackendProgress]);
+
+    const debouncedUpdate = useRef(debounce((moduleId: number, time: number) => {
+        latestUpdateRef.current(moduleId, time);
+    }, 5000)).current;
+
+    const handleTimeUpdate = () => {
+        if (videoRef.current && modules[currentModuleIndex]) {
+            const time = videoRef.current.currentTime;
+            const moduleId = modules[currentModuleIndex].id;
+            // Immediate local update? No, just sync.
+            debouncedUpdate(moduleId, time);
         }
     };
 
     const handleVideoEnded = () => {
-        const currentModule = course.modules[currentVideoIndex];
-        const total = course.modules.length;
+        if (modules[currentModuleIndex]) {
+            const moduleId = modules[currentModuleIndex].id;
+            const duration = videoRef.current?.duration || modules[currentModuleIndex].duration_seconds;
+            // Force strict update
+            updateBackendProgress(moduleId, duration);
 
-        if (!completedVideos.includes(currentModule.id)) {
-            const newCompleted = [...completedVideos, currentModule.id];
-
-            // Log video completion
-            logActivity('VIDEO_WATCHED', `Watched: ${currentModule.title}`);
-
-            // Allow saveProgress to handle course completion check
-            saveProgress(newCompleted, currentVideoIndex); // Temporarily save at current index
-        }
-
-        // Auto-advance if not last video
-        if (currentVideoIndex < total - 1) {
-            const nextIndex = currentVideoIndex + 1;
-            setCurrentVideoIndex(nextIndex);
-
-            // Update storage with new index
-            const savedData = localStorage.getItem(`course_progress_${course.id}_v2`);
-            if (savedData) {
-                const parsed = JSON.parse(savedData);
-                localStorage.setItem(`course_progress_${course.id}_v2`, JSON.stringify({
-                    ...parsed,
-                    lastIndex: nextIndex
-                }));
+            // Auto Advance
+            if (currentModuleIndex < modules.length - 1) {
+                setTimeout(() => {
+                    setCurrentModuleIndex(currentModuleIndex + 1);
+                    setIsPlaying(true);
+                }, 1000);
             }
         }
     };
 
     const handleModuleSelect = (index: number) => {
-        setCurrentVideoIndex(index);
+        setCurrentModuleIndex(index);
         setIsPlaying(true);
-
-        // Update lastIndex in storage so returning resumes here
-        const savedData = localStorage.getItem(`course_progress_${course.id}_v2`);
-        if (savedData) {
-            const parsed = JSON.parse(savedData);
-            localStorage.setItem(`course_progress_${course.id}_v2`, JSON.stringify({
-                ...parsed,
-                lastIndex: index,
-                lastUpdated: new Date().toISOString()
-            }));
-        }
-
-        setTimeout(() => {
-            if (videoRef.current) videoRef.current.play();
-        }, 100);
     };
 
-    if (isLoading || !course) {
-        return <div className="flex h-screen items-center justify-center">Loading...</div>;
-    }
+    const handleStartLearning = () => {
+        setShowEnrollmentSuccess(false);
+        if (videoRef.current) videoRef.current.play();
+        setIsPlaying(true);
+    };
 
-    const currentModule = course.modules[currentVideoIndex];
+    if (isLoading) return <div className="flex h-screen items-center justify-center">Loading...</div>;
+    if (!course) return <div className="flex h-screen items-center justify-center">Course Not Found</div>;
+
+    const currentModule = modules[currentModuleIndex];
+    // Calculate total progress checks
+    const completedCount = Object.values(moduleProgress).filter((p: any) => p.is_completed).length;
+    const progressPercent = modules.length > 0 ? Math.round((completedCount / modules.length) * 100) : 0;
+    const isCompleted = progressPercent === 100;
 
     return (
         <div className="min-h-screen bg-background pb-20 pt-8 animate-fade-in">
             <div className="container mx-auto px-4 lg:px-6">
 
-                {/* Header Section */}
+                {/* Header */}
                 <div className="mb-8 space-y-4">
                     <Button variant="ghost" className="pl-0 hover:bg-transparent" onClick={() => navigate('/courses')}>
                         <ChevronRight className="h-4 w-4 rotate-180 mr-2" /> Back to Courses
@@ -299,122 +323,138 @@ export default function CourseDetails() {
                             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                                 <div className="flex items-center gap-1.5">
                                     <Users className="h-4 w-4" />
-                                    <span>{course.students} Enrolled</span>
+                                    <span>{course.students || 0} Learners</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                     <Clock className="h-4 w-4" />
-                                    <span>{course.duration}</span>
+                                    <span>{Math.round(modules.reduce((acc, m) => acc + m.duration_seconds, 0) / 60)} mins</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                     <Globe className="h-4 w-4" />
-                                    <span>{course.difficulty}</span>
+                                    <span>{course.level}</span>
                                 </div>
                                 <div className="flex items-center gap-1">
                                     <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
-                                    <span className="font-medium text-foreground">{course.rating}</span>
-                                    <span>(New)</span>
+                                    <span className="font-medium text-foreground">{parseFloat(course.rating).toFixed(1)}</span>
                                 </div>
                             </div>
                         </div>
-                        {course.duration && (
-                            <div className="hidden md:block text-right">
-                                <div className="text-2xl font-bold">{course.duration}</div>
-                                <div className="text-sm text-muted-foreground">Total content</div>
-                            </div>
-                        )}
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-                    {/* LEFT COLUMN: Main Content */}
+                    {/* Left Column */}
                     <div className="lg:col-span-2 space-y-8">
-                        {/* Video Player */}
                         <Card className="overflow-hidden border-border shadow-lg">
                             <div className="aspect-video bg-black relative group">
-                                <video
-                                    key={currentModule.videoUrl} // Force reload on url change
-                                    ref={videoRef}
-                                    src={currentModule.videoUrl}
-                                    poster={course.thumbnail}
-                                    className="w-full h-full object-contain"
-                                    controls
-                                    controlsList="nodownload"
-                                    onContextMenu={(e) => e.preventDefault()}
-                                    onPlay={() => setIsPlaying(true)}
-                                    onPause={() => setIsPlaying(false)}
-                                    onEnded={handleVideoEnded}
-                                />
-                            </div>
+                                {showEnrollmentSuccess ? (
+                                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm p-6 text-center animate-in fade-in duration-500">
+                                        <div className="mb-6 rounded-full bg-emerald-500/20 p-4">
+                                            <CheckCircle2 className="h-12 w-12 text-emerald-500" />
+                                        </div>
+                                        <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Congratulations!</h2>
+                                        <p className="text-gray-300 mb-8 text-lg">You have enrolled successfully.</p>
+                                        <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full" onClick={handleStartLearning}>
+                                            <PlayCircle className="mr-2 h-6 w-6" /> Start Learning
+                                        </Button>
+                                    </div>
+                                ) : null}
 
-                            <CardContent className="p-4 space-y-4">
+                                {currentModule ? (
+                                    <video
+                                        key={currentModule.id}
+                                        ref={videoRef}
+                                        // Handle Mock Vs Real Video
+                                        src={currentModule.video_key === 'mock-video'
+                                            ? 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
+                                            : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/modules/${currentModule.id}/video`
+                                        }
+                                        poster={course.thumbnail}
+                                        className="w-full h-full object-contain"
+                                        controls={!showEnrollmentSuccess}
+                                        controlsList="nodownload"
+                                        onContextMenu={(e) => e.preventDefault()}
+                                        onPlay={() => setIsPlaying(true)}
+                                        onPause={() => setIsPlaying(false)}
+                                        onTimeUpdate={handleTimeUpdate}
+                                        onEnded={handleVideoEnded}
+                                        autoPlay={isPlaying}
+                                    />
+                                ) : (
+                                    <div className="flex items-center justify-center h-full text-white">Select a module to start</div>
+                                )}
+                            </div>
+                            <CardContent className="p-6 space-y-6">
                                 <div>
-                                    <h3 className="font-medium text-lg line-clamp-1" title={currentModule.title}>
-                                        {(currentVideoIndex + 1).toString().padStart(2, '0')}. {currentModule.title}
+                                    <h3 className="font-bold text-2xl leading-tight mb-2">
+                                        {currentModule ? `${(currentModuleIndex + 1).toString().padStart(2, '0')}. ${currentModule.title}` : 'No Module Selected'}
                                     </h3>
-                                    <p className="text-sm text-muted-foreground">Module {currentVideoIndex + 1} of 10</p>
+                                    <p className="text-muted-foreground">Module {currentModuleIndex + 1} of {modules.length}</p>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-sm font-medium">
-                                        <span className={isCourseCompleted ? 'text-emerald-500' : 'text-muted-foreground'}>
-                                            {isCourseCompleted ? 'Course Completed' : `${progress}% Completed`}
+                                <div className="space-y-3">
+                                    <div className="flex justify-between items-center text-sm font-medium">
+                                        <span className="text-foreground/90 font-semibold">
+                                            {completedCount} / {modules.length} Modules Completed
                                         </span>
-                                        <span>{progress}%</span>
+                                        <span className="text-muted-foreground">{progressPercent}%</span>
                                     </div>
-                                    <Progress value={progress} className={`h-2 ${isCourseCompleted ? '[&>div]:bg-emerald-500' : ''}`} />
+                                    <Progress value={progressPercent} className="h-2.5 w-full bg-secondary/30" indicatorClassName={isCompleted ? 'bg-emerald-500' : 'bg-primary'} />
                                 </div>
                             </CardContent>
                         </Card>
 
-                        {/* CERTIFICATE CARD - Only when 100% */}
-                        {isCourseCompleted && (
-                            <Card className="border-emerald-500/20 bg-emerald-50/50 dark:bg-emerald-950/10 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
+                        {/* CERTIFICATE */}
+                        {isCompleted && (
+                            <Card className="border-emerald-500/20 bg-emerald-50/50 dark:bg-emerald-950/10 animate-in fade-in slide-in-from-bottom-4">
                                 <CardContent className="p-6 text-center space-y-4">
                                     <div className="h-12 w-12 mx-auto bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mb-2">
                                         <Award className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
                                     </div>
-                                    <Button
-                                        onClick={() => setShowCertificate(true)}
-                                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-md group"
-                                    >
+                                    <Button onClick={() => setShowCertificate(true)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-md">
                                         View Certificate
-                                        <ChevronRight className="h-4 w-4 ml-1 transition-transform group-hover:translate-x-1" />
                                     </Button>
                                 </CardContent>
                             </Card>
                         )}
 
                         {/* What you'll learn */}
-                        <Card className="border-border/50 bg-card/50">
-                            <CardHeader><CardTitle>What you'll learn</CardTitle></CardHeader>
-                            <CardContent>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {course.learn.map((item: string, i: number) => (
-                                        <div key={i} className="flex gap-3 items-start">
-                                            <CheckCircle2 className="h-5 w-5 text-emerald-500 mt-0.5 shrink-0" />
-                                            <span className="text-sm">{item}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </CardContent>
-                        </Card>
+                        {course.learn && course.learn.length > 0 && (
+                            <Card className="border-border shadow-sm">
+                                <CardContent className="p-6">
+                                    <h3 className="text-xl font-bold mb-4">What you'll learn</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {course.learn.map((item: string, i: number) => (
+                                            <div key={i} className="flex items-start gap-2">
+                                                <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
+                                                <span className="text-sm">{item}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
 
                         {/* Requirements */}
+                        {course.requirements && course.requirements.length > 0 && (
+                            <div className="space-y-3">
+                                <h3 className="text-xl font-bold">Requirements</h3>
+                                <ul className="list-disc list-inside space-y-1 text-muted-foreground ml-2">
+                                    {course.requirements.map((req: string, i: number) => (
+                                        <li key={i}>{req}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        {/* Description */}
                         <div className="space-y-4">
-                            <h3 className="text-xl font-bold">Requirements</h3>
-                            <ul className="space-y-2">
-                                {course.requirements.map((req: string, i: number) => (
-                                    <li key={i} className="flex items-center gap-3 text-muted-foreground">
-                                        <div className="h-1.5 w-1.5 rounded-full bg-primary/60" />
-                                        {req}
-                                    </li>
-                                ))}
-                            </ul>
+                            <h3 className="text-xl font-bold">About this Course</h3>
+                            <p className="text-muted-foreground leading-relaxed">{course.description}</p>
                         </div>
                     </div>
 
-                    {/* RIGHT COLUMN: Playlist - ENHANCED */}
+                    {/* Right Column: Playlist */}
                     <div className="lg:col-span-1">
                         <div className="sticky top-24">
                             <Card className="border-border shadow-md flex flex-col h-[650px] bg-card/80 backdrop-blur-sm">
@@ -423,75 +463,76 @@ export default function CourseDetails() {
                                         <MonitorPlay className="h-5 w-5 text-primary" /> Course Playlist
                                     </CardTitle>
                                     <CardDescription>
-                                        {completedVideos.length} / 10 Modules Completed
+                                        {completedCount} / {modules.length} Modules Completed
                                     </CardDescription>
                                 </CardHeader>
                                 <ScrollArea className="flex-1 p-3">
                                     <div className="space-y-3">
-                                        {course.modules.map((module: any, index: number) => {
-                                            const isCompleted = completedVideos.includes(module.id);
-                                            const isCurrent = index === currentVideoIndex;
-                                            // Icon selection
-                                            const StatusIcon = isCompleted ? CheckCircle2 : (isCurrent ? PlayCircle : PlayCircle);
-                                            // 0-indexed to 01, 02...
-                                            const serialNo = (index + 1).toString().padStart(2, '0');
+                                        {modules.map((module: any, index: number) => {
+                                            const isModCompleted = moduleProgress[module.id]?.is_completed;
+                                            const isCurrent = currentModuleIndex === index;
+                                            // Lock logic
+                                            const isLocked = !isModCompleted && !isCurrent && index > 0 && !moduleProgress[modules[index - 1].id]?.is_completed;
 
                                             return (
-                                                <button
+                                                <div
                                                     key={module.id}
-                                                    onClick={() => handleModuleSelect(index)}
-                                                    className={`w-full flex items-start gap-4 p-4 text-left transition-all rounded-xl border group
+                                                    onClick={() => !isLocked && handleModuleSelect(index)}
+                                                    className={`flex items-start gap-4 p-4 rounded-xl border transition-all duration-200
                                                         ${isCurrent
-                                                            ? 'bg-primary/5 border-primary shadow-sm ring-1 ring-primary/20'
-                                                            : 'bg-card border-border hover:border-primary/50 hover:shadow-sm'
+                                                            ? 'bg-primary/5 border-primary/20 shadow-sm ring-1 ring-primary/10'
+                                                            : isModCompleted
+                                                                ? 'bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-500/10 cursor-pointer'
+                                                                : isLocked
+                                                                    ? 'opacity-50 cursor-not-allowed bg-muted/30 border-transparent'
+                                                                    : 'hover:bg-accent/50 border-transparent cursor-pointer'
                                                         }`}
                                                 >
-                                                    <div className="shrink-0 pt-0.5">
-                                                        {isCompleted ? (
-                                                            <div className="h-6 w-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
-                                                                <CheckCircle2 className="h-4 w-4" />
-                                                            </div>
+                                                    <div className={`mt-0.5 h-6 w-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors
+                                                        ${isModCompleted
+                                                            ? 'bg-emerald-500 border-emerald-500 text-white'
+                                                            : isCurrent
+                                                                ? 'border-primary text-primary'
+                                                                : 'border-muted-foreground/30'
+                                                        }`}>
+                                                        {isModCompleted ? (
+                                                            <CheckCircle2 className="h-3.5 w-3.5 stroke-[3]" />
+                                                        ) : isCurrent ? (
+                                                            <Play className="h-2.5 w-2.5 fill-current" />
                                                         ) : (
-                                                            <div className={`h-6 w-6 rounded-full border-2 flex items-center justify-center text-[10px] font-bold
-                                                                ${isCurrent ? 'border-primary text-primary' : 'border-muted-foreground/30 text-muted-foreground'}`}>
-                                                                {isCurrent ? <Play className="h-2.5 w-2.5 fill-current" /> : <div className="h-2.5 w-2.5 rounded-full bg-transparent" /> /* Circle outline */}
-                                                            </div>
+                                                            <span className="text-[10px] font-medium text-muted-foreground">{index + 1}</span>
                                                         )}
                                                     </div>
-
-                                                    <div className="min-w-0 flex-1 space-y-1">
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <Badge variant="outline" className={`h-5 px-1.5 text-[10px] ${isCurrent ? 'border-primary/30 text-primary' : 'text-muted-foreground'}`}>
-                                                                Module {serialNo}
-                                                            </Badge>
+                                                    <div className="flex-1 space-y-1">
+                                                        <div className="flex justify-between items-start gap-2">
+                                                            <p className={`text-sm font-semibold line-clamp-2 ${isModCompleted ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                                                                {module.title}
+                                                            </p>
+                                                            {isLocked && <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />}
                                                         </div>
-                                                        <p className={`text-sm font-semibold leading-tight line-clamp-2 ${isCurrent ? 'text-primary' : 'text-foreground group-hover:text-primary/80'}`}>
-                                                            {module.title.split(': ')[1] || module.title}
-                                                        </p>
-                                                        <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
-                                                            <Clock className="h-3 w-3" />
-                                                            <span>{module.duration}</span>
+                                                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                                            <span className="flex items-center gap-1">
+                                                                <Clock className="h-3 w-3" /> {Math.floor(module.duration_seconds / 60)}:{(module.duration_seconds % 60).toString().padStart(2, '0')}
+                                                            </span>
                                                         </div>
                                                     </div>
-                                                </button>
+                                                </div>
                                             );
                                         })}
                                     </div>
                                 </ScrollArea>
                             </Card>
-
                             <CertificateModal
                                 isOpen={showCertificate}
                                 onClose={() => setShowCertificate(false)}
-                                studentName={user?.name || "Student Name"}
+                                studentName={user?.name || "Student"}
                                 courseTitle={course.title}
                                 instructor={course.instructor}
-                                date={currentDate}
-                                certId={certId}
+                                date={new Date().toLocaleDateString()}
+                                certId={`CERT-${course.id}`}
                             />
                         </div>
                     </div>
-
                 </div>
             </div>
         </div>

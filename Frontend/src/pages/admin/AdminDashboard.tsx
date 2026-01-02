@@ -68,7 +68,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetTrigger } from "@/components/ui/sheet";
@@ -108,6 +108,7 @@ import MentorshipOverview from '@/components/admin/module-overviews/MentorshipOv
 import CoursesOverview from '@/components/admin/module-overviews/CoursesOverview';
 import ProjectsOverview from '@/components/admin/module-overviews/ProjectsOverview';
 import JobsOverview from '@/components/admin/module-overviews/JobsOverview';
+import { DashboardFooter } from "@/components/common/DashboardFooter";
 
 // Socket connection
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -242,12 +243,13 @@ const JOB_APPLICATIONS = [
 export default function AdminDashboard() {
     const { signOut, user } = useAuth();
     const navigate = useNavigate();
-    const [activeModule, setActiveModule] = useState('dashboard');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const activeModule = searchParams.get('tab') || 'dashboard';
+    const setActiveModule = (module: string) => setSearchParams({ tab: module });
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
     const sidebarItems = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { id: 'features', label: 'Feature Management', icon: Settings },
         { id: 'users', label: 'User Management', icon: Users },
         { id: 'courses', label: 'Courses & Learning', icon: BookOpen },
         { id: 'coding', label: 'Coding Platform', icon: Code },
@@ -264,7 +266,7 @@ export default function AdminDashboard() {
     const renderContent = () => {
         switch (activeModule) {
             case 'dashboard':
-                return <DashboardOverview />;
+                return <DashboardOverview onNavigate={(module: string) => setActiveModule(module)} />;
             case 'users':
                 return <UserManagement />; // Using standalone component
             // return <div className="p-10 text-center">User Management is currently disabled for debugging.</div>;
@@ -289,7 +291,7 @@ export default function AdminDashboard() {
             case 'settings':
                 return <SettingsManagement />;
             default:
-                return <DashboardOverview />;
+                return <DashboardOverview onNavigate={(module: string) => setActiveModule(module)} />;
         }
     };
 
@@ -401,6 +403,7 @@ export default function AdminDashboard() {
 
                 <div className="p-6">
                     {renderContent()}
+                    <DashboardFooter />
                 </div>
             </main>
         </div>

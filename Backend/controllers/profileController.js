@@ -7,7 +7,7 @@ export const getProfile = async (req, res) => {
     try {
         const userId = req.user.id;
         const [users] = await db.query(
-            'SELECT id, name, email, phone_number, college_name, profile_picture, resume_path, role, created_at FROM users WHERE id = ?',
+            'SELECT id, name, email, phone_number, college_name, profile_picture, resume_path, role, created_at, bio, location, github, linkedin, gender FROM users WHERE id = ?',
             [userId]
         );
 
@@ -26,15 +26,15 @@ export const getProfile = async (req, res) => {
 export const updateProfile = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { name, phone_number, college_name } = req.body;
+        const { name, phone_number, college_name, bio, location, github, linkedin, gender } = req.body;
 
         await db.query(
-            'UPDATE users SET name = ?, phone_number = ?, college_name = ? WHERE id = ?',
-            [name, phone_number, college_name, userId]
+            'UPDATE users SET name = ?, phone_number = ?, college_name = ?, bio = ?, location = ?, github = ?, linkedin = ?, gender = ? WHERE id = ?',
+            [name, phone_number, college_name, bio, location || null, github, linkedin, gender, userId]
         );
 
         // Fetch updated user to return
-        const [updatedUsers] = await db.query('SELECT  id, name, email, phone_number, college_name, profile_picture, resume_path, role FROM users WHERE id = ?', [userId]);
+        const [updatedUsers] = await db.query('SELECT id, name, email, phone_number, college_name, profile_picture, resume_path, role, created_at, bio, location, github, linkedin, gender FROM users WHERE id = ?', [userId]);
 
         res.json({ message: 'Profile updated successfully', user: updatedUsers[0] });
     } catch (error) {

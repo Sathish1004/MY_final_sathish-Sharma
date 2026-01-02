@@ -65,20 +65,146 @@ export const getDashboardStats = async (req, res) => {
 
 export const getGrowthAnalytics = async (req, res) => {
     try {
-        // Get user registrations for last 30 days
+        const { period } = req.query; // 'day', 'week', 'month', 'year'
+        let dateCondition = "";
+        let dateFormat = ""; // For SQL grouping if we were doing it there, but we'll do JS grouping for details
+
+        // 1. Determine Time Range
+        switch (period) {
+            case 'day':
+                dateCondition = "created_at >= NOW() - INTERVAL 1 DAY";
+                break;
+            case 'week':
+                dateCondition = "created_at >= NOW() - INTERVAL 7 DAY";
+                break;
+            case 'month':
+                dateCondition = "created_at >= NOW() - INTERVAL 30 DAY";
+                break;
+            case 'year':
+                dateCondition = "created_at >= NOW() - INTERVAL 1 YEAR";
+                break;
+            default:
+                dateCondition = "created_at >= NOW() - INTERVAL 7 DAY"; // Default to week
+        }
+
+        // 2. Fetch all matching users (raw data) to group in JS
         const query = `
-            SELECT DATE(created_at) as date, COUNT(*) as count 
+            SELECT id, name, email, created_at, status 
             FROM users 
-            WHERE created_at >= NOW() - INTERVAL 30 DAY 
-            GROUP BY DATE(created_at) 
-            ORDER BY DATE(created_at) ASC
+            WHERE ${dateCondition}
+            ORDER BY created_at ASC
         `;
-        const [rows] = await db.query(query);
-        res.json(rows);
+        const [users] = await db.query(query);
+
+        // 3. Group Users into Buckets
+        const buckets = {};
+
+        // Helper to generate keys
+        const getKey = (date) => {
+            const d = new Date(date);
+            if (period === 'day') {
+                // Hour buckets: "10 AM", "11 AM"
+                return d.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true });
+            } else if (period === 'year') {
+                // Month buckets: "Jan", "Feb"
+                return d.toLocaleDateString('en-US', { month: 'short' });
+            } else {
+                // Day buckets: "Mon", "Tue" or "Oct 24"
+                return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            }
+        };
+
+        // Initialize buckets to ensure continuous graph (optional, but good for UI)
+        // For simplicity, we'll map existing data first. 
+        // Filling gaps requires generating the full range, which is better:
+
+        const now = new Date();
+        const generateRange = () => {
+            const range = [];
+            if (period === 'day') {
+                for (let i = 23; i >= 0; i--) {
+                    const d = new Date(now);
+                    d.setHours(now.getHours() - i);
+                    range.push(getKey(d));
+                }
+            } else if (period === 'week') {
+                for (let i = 6; i >= 0; i--) {
+                    const d = new Date(now);
+                    d.setDate(now.getDate() - i);
+                    range.push(getKey(d));
+                }
+            } else if (period === 'month') {
+                // Last 30 days might be too crowded, maybe group by week? 
+                // Request asked for drill down to day. Let's do daily but maybe frontend hides labels.
+                for (let i = 29; i >= 0; i--) {
+                    const d = new Date(now);
+                    d.setDate(now.getDate() - i);
+                    range.push(getKey(d));
+                }
+            } else if (period === 'year') {
+                for (let i = 11; i >= 0; i--) {
+                    const d = new Date(now);
+                    d.setMonth(now.getMonth() - i);
+                    range.push(getKey(d));
+                }
+            }
+            return range;
+        };
+
+        const labels = generateRange();
+        labels.forEach(label => {
+            buckets[label] = { date: label, count: 0, users: [] };
+        });
+
+        // Fill data
+        users.forEach(user => {
+            const key = getKey(user.created_at);
+            if (buckets[key]) {
+                buckets[key].count++;
+                buckets[key].users.push(user);
+            }
+        });
+
+        // 4. Calculate Growth Percentage
+        let prevDateCondition = "";
+        switch (period) {
+            case 'day':
+                prevDateCondition = "created_at >= NOW() - INTERVAL 2 DAY AND created_at < NOW() - INTERVAL 1 DAY";
+                break;
+            case 'week':
+                prevDateCondition = "created_at >= NOW() - INTERVAL 14 DAY AND created_at < NOW() - INTERVAL 7 DAY";
+                break;
+            case 'month':
+                prevDateCondition = "created_at >= NOW() - INTERVAL 60 DAY AND created_at < NOW() - INTERVAL 30 DAY";
+                break;
+            case 'year':
+                prevDateCondition = "created_at >= NOW() - INTERVAL 2 YEAR AND created_at < NOW() - INTERVAL 1 YEAR";
+                break;
+            default:
+                prevDateCondition = "created_at >= NOW() - INTERVAL 14 DAY AND created_at < NOW() - INTERVAL 7 DAY";
+        }
+
+        const [prevRows] = await db.query(`SELECT COUNT(*) as count FROM users WHERE ${prevDateCondition}`);
+        const currentCount = users.length;
+        const previousCount = prevRows[0].count; // Fixed: Query returns rows array
+
+        let growth = 0;
+        if (previousCount === 0) {
+            growth = currentCount > 0 ? 100 : 0;
+        } else {
+            growth = ((currentCount - previousCount) / previousCount) * 100;
+        }
+
+        // Convert to array
+        const result = Object.values(buckets);
+
+        res.json({
+            chart: result,
+            growth: Math.round(growth * 10) / 10 // Round to 1 decimal
+        });
     } catch (error) {
         console.error('Error fetching growth analytics:', error);
-        // Return empty array on error (e.g. if created_at doesn't exist)
-        res.json([]);
+        res.json({ chart: [], growth: 0 });
     }
 };
 

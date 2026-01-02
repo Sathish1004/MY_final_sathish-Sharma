@@ -23,7 +23,10 @@ import eventRoutes from './routes/eventRoutes.js';
 import courseRoutes from './routes/courseRoutes.js';
 import featureRoutes from './routes/featureRoutes.js';
 import shareRoutes from './routes/shareRoutes.js';
-
+import studentRoutes from './routes/studentRoutes.js';
+import activityRoutes from './routes/activityRoutes.js';
+import moduleRoutes from './routes/moduleRoutes.js';
+import certificateRoutes from './routes/certificateRoutes.js';
 
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -62,6 +65,10 @@ app.use('/api/events', eventRoutes);
 app.use('/api/features', featureRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api', shareRoutes);
+app.use('/api/student', studentRoutes);
+app.use('/api/activity', activityRoutes);
+app.use('/api/modules', moduleRoutes);
+app.use('/api/certificate', certificateRoutes);
 
 app.get('/', (req, res) => {
     res.json({ message: 'API is running...' });
@@ -78,10 +85,36 @@ app.get('/test-db', async (req, res) => {
     }
 });
 
+// Track online users: Map<userId, socketId>
+// Note: In a distributed system, use Redis. For single server, Map is fine.
+const onlineUsers = new Map();
+
 io.on('connection', (socket) => {
     console.log('New client connected:', socket.id);
+
+    // extracting userId from query params if available
+    const userId = socket.handshake.query.userId;
+
+    if (userId) {
+        onlineUsers.set(userId, socket.id);
+        console.log(`User ${userId} went online`);
+        // Broadcast to admins (or everyone) that this user is online
+        io.emit('user_status_update', { userId, status: 'Active' });
+    }
+
+    // Handle Admin requesting list of all online users
+    socket.on('get_online_users', () => {
+        const usersList = Array.from(onlineUsers.keys());
+        socket.emit('online_users_list', usersList);
+    });
+
     socket.on('disconnect', () => {
         console.log('Client disconnected:', socket.id);
+        if (userId) {
+            onlineUsers.delete(userId);
+            console.log(`User ${userId} went offline`);
+            io.emit('user_status_update', { userId, status: 'Inactive' });
+        }
     });
 });
 

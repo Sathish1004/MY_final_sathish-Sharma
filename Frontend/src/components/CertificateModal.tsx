@@ -14,6 +14,9 @@ interface CertificateModalProps {
     certId: string;
 }
 
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+
 const CertificateModal: React.FC<CertificateModalProps> = ({
     isOpen,
     onClose,
@@ -25,21 +28,54 @@ const CertificateModal: React.FC<CertificateModalProps> = ({
 }) => {
     const certificateRef = useRef<HTMLDivElement>(null);
 
-    const handleDownload = () => {
-        // In a real app, this would use html2canvas or jsPDF
-        window.print();
+    const handleDownload = async () => {
+        if (!certificateRef.current) return;
+
+        try {
+            // Capture the certificate
+            const canvas = await html2canvas(certificateRef.current, {
+                scale: 2, // Higher resolution
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                logging: false,
+                windowWidth: 1024 // Ensure landscape width capture
+            });
+
+            // Calculate PDF dimensions
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'landscape',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            // A4 dimensions in mm: 297 x 210
+            const pdfWidth = 297;
+            const pdfHeight = 210;
+
+            // Add image to PDF
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+
+            // Save
+            pdf.save(`Certificate - ${studentName} - ${courseTitle}.pdf`);
+
+        } catch (err) {
+            console.error("Failed to generate PDF", err);
+        }
     };
 
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+            {/* No print CSS needed for canvas download */}
+
             <div className="relative w-full max-w-5xl bg-white rounded-lg shadow-2xl overflow-hidden">
                 {/* Header Controls */}
-                <div className="absolute top-4 right-4 flex gap-2 z-10 print:hidden">
+                <div className="absolute top-4 right-4 flex gap-2 z-10">
                     <Button onClick={handleDownload} variant="outline" className="gap-2 bg-white/90 hover:bg-white text-slate-800 border-slate-200">
                         <Download className="h-4 w-4" />
-                        Download / Print
+                        Download PDF
                     </Button>
                     <Button onClick={onClose} variant="ghost" size="icon" className="h-10 w-10 text-slate-500 hover:text-slate-800 hover:bg-white/50 rounded-full">
                         <X className="h-6 w-6" />
