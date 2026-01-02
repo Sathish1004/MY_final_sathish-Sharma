@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -29,19 +29,18 @@ import {
 import { cn } from '@/lib/utils';
 import OnboardingOverlay from "../OnboardingOverlay";
 import { NotificationCenter } from "../NotificationCenter";
-import { DashboardFooter } from "@/components/common/DashboardFooter";
 
 const navItems = [
-  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, id: 'nav-item-dashboard' },
-  { title: 'Courses', url: '/courses', icon: BookOpen, id: 'nav-item-courses' },
-  { title: 'Coding Platform', url: '/coding', icon: Code2, id: 'nav-item-coding-platform' },
-  { title: 'Jobs & Internships', url: '/jobs', icon: Briefcase, id: 'nav-item-jobs-internships' },
-  { title: 'Mentors', url: '/mentors', icon: Users, id: 'nav-item-mentors' },
-  { title: 'News & Updates', url: '/news', icon: Newspaper, id: 'nav-item-news-updates' },
-  { title: 'Projects', url: '/projects', icon: FolderKanban, id: 'nav-item-projects' },
-  { title: 'Events', url: '/events', icon: Calendar, id: 'nav-item-events' },
-  { title: 'Placements', url: '/placements', icon: Briefcase, id: 'nav-item-placements' },
-  { title: 'Feedback', url: '/feedback', icon: MessageSquare, id: 'nav-item-feedback' },
+  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
+  { title: 'Courses', url: '/courses', icon: BookOpen },
+  { title: 'Coding Platform', url: '/coding', icon: Code2 },
+  { title: 'Jobs & Internships', url: '/jobs', icon: Briefcase },
+  { title: 'Mentors', url: '/mentors', icon: Users },
+  { title: 'News & Updates', url: '/news', icon: Newspaper },
+  { title: 'Projects', url: '/projects', icon: FolderKanban },
+  { title: 'Events', url: '/events', icon: Calendar },
+  { title: 'Placements', url: '/placements', icon: Briefcase },
+  { title: 'Feedback', url: '/feedback', icon: MessageSquare },
 ];
 
 export default function DashboardLayout() {
@@ -55,7 +54,13 @@ export default function DashboardLayout() {
     navigate('/');
   };
 
-  if (loading) {
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/');
+    }
+  }, [user, loading, navigate]);
+
+  if (loading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -90,7 +95,6 @@ export default function DashboardLayout() {
                 <Link
                   key={item.title}
                   to={item.url}
-                  id={item.id}
                   className={cn(
                     "w-full flex items-center py-3 rounded-lg transition-all duration-200 group relative",
                     isSidebarOpen ? "px-3" : "justify-center px-0",
@@ -202,7 +206,6 @@ export default function DashboardLayout() {
         {/* Page content */}
         <div className="flex-1 p-4 md:p-6 overflow-auto">
           <Outlet />
-          <DashboardFooter />
         </div>
       </main>
     </div>

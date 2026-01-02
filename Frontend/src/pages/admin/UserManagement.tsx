@@ -27,11 +27,11 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { MoreHorizontal, Search, Trash2, Edit, ChevronLeft, ChevronRight, Shield, Lock, LogOut } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/components/ui/use-toast";
 import UserProfileDrawer from "@/components/admin/UserProfileDrawer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuth } from "@/contexts/AuthContext";
 
 interface User {
     id: number;
@@ -45,14 +45,11 @@ interface User {
     progress: number;
     profile_picture?: string;
     resume_path?: string;
-    current_role?: string;
 }
 
 export default function UserManagement() {
-    const { socket } = useAuth();
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
-    const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
 
     // Filters & Search
     const [search, setSearch] = useState("");
@@ -74,35 +71,6 @@ export default function UserManagement() {
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-    // Socket Listener for Real-Time Status
-    useEffect(() => {
-        if (!socket) return;
-
-        // Request initial list of online users
-        socket.emit('get_online_users');
-
-        socket.on('online_users_list', (userIds: string[]) => {
-            setOnlineUsers(new Set(userIds.map(String)));
-        });
-
-        socket.on('user_status_update', ({ userId, status }: { userId: string, status: string }) => {
-            setOnlineUsers(prev => {
-                const newSet = new Set(prev);
-                if (status === 'Active') {
-                    newSet.add(String(userId));
-                } else {
-                    newSet.delete(String(userId));
-                }
-                return newSet;
-            });
-        });
-
-        return () => {
-            socket.off('online_users_list');
-            socket.off('user_status_update');
-        };
-    }, [socket]);
-
     // Debounce Search
     useEffect(() => {
         const handler = setTimeout(() => {
@@ -119,12 +87,13 @@ export default function UserManagement() {
             const queryParams = new URLSearchParams();
             if (debouncedSearch) queryParams.append('search', debouncedSearch);
             if (statusFilter !== 'all') queryParams.append('status', statusFilter);
+            if (statusFilter !== 'all') queryParams.append('status', statusFilter);
             if (genderFilter !== 'all') queryParams.append('gender', genderFilter);
             queryParams.append('sort', sortOrder);
             queryParams.append('page', page.toString());
             queryParams.append('limit', LIMIT.toString());
 
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/users?${queryParams}`, {
+            const response = await fetch(`http://localhost:5000/api/admin/users?${queryParams}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -178,7 +147,7 @@ export default function UserManagement() {
 
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/users/delete-bulk`, {
+            const response = await fetch('http://localhost:5000/api/admin/users/delete-bulk', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -210,7 +179,7 @@ export default function UserManagement() {
 
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/users/${userId}/reset-password`, {
+            const res = await fetch(`http://localhost:5000/api/admin/users/${userId}/reset-password`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ newPassword })
@@ -226,7 +195,7 @@ export default function UserManagement() {
         if (!confirm("Force logout this user?")) return;
         try {
             const token = localStorage.getItem('token');
-            await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/admin/users/${userId}/logout`, {
+            await fetch(`http://localhost:5000/api/admin/users/${userId}/logout`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -242,13 +211,14 @@ export default function UserManagement() {
             return;
         }
 
-        const headers = ["ID", "Name", "Email", "Role", "Status", "Joined Date"];
+        const headers = ["ID", "Name", "Email", "Role", "Status", "Progress", "Joined Date"];
         const rows = users.map(u => [
             u.id,
             u.name,
             u.email,
             u.role,
-            onlineUsers.has(String(u.id)) ? 'Active' : 'Inactive',
+            u.status,
+            `${Math.round(u.progress)}%`,
             new Date(u.created_at).toLocaleDateString()
         ]);
 
@@ -356,6 +326,7 @@ export default function UserManagement() {
                             <TableHead>Gender</TableHead>
                             <TableHead>Role</TableHead>
                             <TableHead>Status</TableHead>
+                            <TableHead className="w-[150px]">Progress</TableHead>
                             <TableHead>Joined Date</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -377,95 +348,95 @@ export default function UserManagement() {
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            users.map((user, index) => {
-                                const isOnline = onlineUsers.has(String(user.id));
-                                return (
-                                    <TableRow
-                                        key={user.id}
-                                        className="hover:bg-slate-50 transition-colors cursor-pointer"
-                                        onClick={(e) => {
-                                            // Prevent triggering when clicking checkbox or action button
-                                            if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('[role="checkbox"]')) return;
-                                            openProfile(user);
-                                        }}
-                                    >
-                                        <TableCell className="font-medium text-slate-500">
-                                            {((page - 1) * LIMIT + index + 1).toString().padStart(2, '0')}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-3">
-                                                <Avatar className="h-9 w-9 border border-slate-200">
-                                                    <AvatarImage src={user.profile_picture ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${user.profile_picture}` : undefined} />
-                                                    <AvatarFallback className="bg-blue-100 text-blue-700 font-bold">
-                                                        {user.name.charAt(0).toUpperCase()}
-                                                    </AvatarFallback>
-                                                </Avatar>
-                                                <div className="flex flex-col">
-                                                    <span className="font-medium text-slate-900">{user.name}</span>
-                                                    <span className="text-xs text-muted-foreground">{user.email}</span>
-                                                </div>
+                            users.map((user, index) => (
+                                <TableRow
+                                    key={user.id}
+                                    className="hover:bg-slate-50 transition-colors cursor-pointer"
+                                    onClick={(e) => {
+                                        // Prevent triggering when clicking checkbox or action button
+                                        if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('[role="checkbox"]')) return;
+                                        openProfile(user);
+                                    }}
+                                >
+                                    <TableCell className="font-medium text-slate-500">
+                                        {((page - 1) * LIMIT + index + 1).toString().padStart(2, '0')}
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-3">
+                                            <Avatar className="h-9 w-9 border border-slate-200">
+                                                <AvatarImage src={user.profile_picture ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${user.profile_picture}` : undefined} />
+                                                <AvatarFallback className="bg-blue-100 text-blue-700 font-bold">
+                                                    {user.name.charAt(0).toUpperCase()}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex flex-col">
+                                                <span className="font-medium text-slate-900">{user.name}</span>
+                                                <span className="text-xs text-muted-foreground">{user.email}</span>
                                             </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline" className="text-xs font-medium border-slate-200">
-                                                {user.gender || 'N/A'}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline" className={
-                                                user.role === 'Admin' ? 'bg-purple-100 text-purple-700 border-purple-200' :
-                                                    user.role === 'Instructor' ? 'bg-indigo-100 text-indigo-700 border-indigo-200' :
-                                                        'bg-slate-100 text-slate-700 border-slate-200'
-                                            }>
-                                                {user.current_role || user.role}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-2">
-                                                {isOnline ? (
-                                                    <>
-                                                        <div className="h-2.5 w-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse" />
-                                                        <span className="text-sm font-medium text-green-700">Active</span>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <div className="h-2.5 w-2.5 rounded-full bg-red-400" />
-                                                        <span className="text-sm text-slate-500">Inactive</span>
-                                                    </>
-                                                )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant="outline" className="text-xs font-medium border-slate-200">
+                                            {user.gender || 'N/A'}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant="outline" className={
+                                            user.role === 'Admin' ? 'bg-purple-100 text-purple-700 border-purple-200' :
+                                                user.role === 'Instructor' ? 'bg-indigo-100 text-indigo-700 border-indigo-200' :
+                                                    'bg-slate-100 text-slate-700 border-slate-200'
+                                        }>
+                                            {user.role}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-1.5">
+                                            <div className={`h-2 w-2 rounded-full ${user.status === 'Active' ? 'bg-green-500' : user.status === 'Expired' ? 'bg-red-500' : 'bg-slate-400'}`} />
+                                            <span className={`text-sm ${user.status === 'Expired' ? 'text-red-600 font-bold' : 'text-slate-600'}`}>{user.status === 'Expired' ? 'Expired' : user.status}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-col gap-1.5 w-[120px]">
+                                            <div className="flex justify-between text-[10px] font-medium text-slate-500">
+                                                <span>{Math.round(user.progress)}%</span>
+                                                <span>{user.progress >= 100 ? 'Completed' : 'Overall'}</span>
                                             </div>
-                                        </TableCell>
-                                        <TableCell className="text-sm text-slate-500">
-                                            {new Date(user.created_at).toLocaleString()}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-slate-900">
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end" className="w-48">
-                                                    <DropdownMenuLabel>Account Actions</DropdownMenuLabel>
-                                                    <DropdownMenuItem onClick={() => openProfile(user)}>
-                                                        <Edit className="h-4 w-4 mr-2" /> Edit Details
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleResetPassword(user.id)}>
-                                                        <Lock className="h-4 w-4 mr-2" /> Reset Password
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleForceLogout(user.id)}>
-                                                        <LogOut className="h-4 w-4 mr-2" /> Force Logout
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50">
-                                                        <Trash2 className="h-4 w-4 mr-2" /> Delete Account
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })
+                                            <Progress
+                                                value={user.progress}
+                                                className={`h-1.5 bg-slate-100 ${user.progress >= 80 ? '[&>div]:bg-green-500' : user.progress >= 40 ? '[&>div]:bg-blue-500' : '[&>div]:bg-amber-500'}`}
+                                            />
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-sm text-slate-500">
+                                        {new Date(user.created_at).toLocaleDateString()}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-slate-900">
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end" className="w-48">
+                                                <DropdownMenuLabel>Account Actions</DropdownMenuLabel>
+                                                <DropdownMenuItem onClick={() => openProfile(user)}>
+                                                    <Edit className="h-4 w-4 mr-2" /> Edit Details
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleResetPassword(user.id)}>
+                                                    <Lock className="h-4 w-4 mr-2" /> Reset Password
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleForceLogout(user.id)}>
+                                                    <LogOut className="h-4 w-4 mr-2" /> Force Logout
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50">
+                                                    <Trash2 className="h-4 w-4 mr-2" /> Delete Account
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            ))
                         )}
                     </TableBody>
                 </Table>

@@ -1,24 +1,15 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { io, Socket } from 'socket.io-client';
 
 interface User {
   id: number;
   name: string;
   email: string;
   role: 'ADMIN' | 'STUDENT';
-  current_role?: string;
   profile_picture?: string;
   phone_number?: string;
   college_name?: string;
   resume_path?: string;
-  bio?: string;
-  location?: string;
-  github?: string;
-  linkedin?: string;
-  created_at?: string;
-  status?: 'Active' | 'Inactive';
-  gender?: string;
 }
 
 interface AuthContextType {
@@ -32,7 +23,6 @@ interface AuthContextType {
   showOnboarding: boolean;
   setShowOnboarding: (value: boolean) => void;
   refreshUser: () => Promise<void>;
-  socket: Socket | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -44,7 +34,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [socket, setSocket] = useState<Socket | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -57,13 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
           if (res.ok) {
             const userData = await res.json();
-            if (userData.status === 'Inactive') {
-              toast({ title: "Account Deactivated", description: "Your account is inactive.", variant: "destructive" });
-              localStorage.removeItem('token');
-              setUser(null);
-            } else {
-              setUser(userData);
-            }
+            setUser(userData);
           } else {
             localStorage.removeItem('token');
             setUser(null);
@@ -78,64 +61,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     checkAuth();
   }, []);
-
-  // Poll for user status updates (Immediate Access Revocation)
-  useEffect(() => {
-    if (!user) return;
-
-    const interval = setInterval(async () => {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-
-      try {
-        const res = await fetch(`${API_URL}/api/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const userData = await res.json();
-          // Check if status changed to Inactive
-          if (userData.status === 'Inactive') {
-            toast({
-              title: "Access Revoked",
-              description: "Your account has been deactivated by an administrator.",
-              variant: "destructive"
-            });
-            signOut();
-          } else {
-            // Silently update user data to reflect other changes (like name, etc) but avoid re-renders if deep equal? 
-            // For now just set user if status matches to keep it fresh
-            setUser(prev => JSON.stringify(prev) !== JSON.stringify(userData) ? userData : prev);
-          }
-        } else if (res.status === 401 || res.status === 403) {
-          signOut();
-        }
-      } catch (error) {
-        console.error("Status check failed", error);
-      }
-    }, 5000); // Check every 5 seconds
-
-    return () => clearInterval(interval);
-  }, [user]);
-
-  // Socket Connection Management
-  useEffect(() => {
-    if (user) {
-      const newSocket = io(API_URL, {
-        query: { userId: user.id }
-      });
-      setSocket(newSocket);
-
-      return () => {
-        newSocket.close();
-        setSocket(null);
-      };
-    } else {
-      if (socket) {
-        socket.close();
-        setSocket(null);
-      }
-    }
-  }, [user]); // Re-run when user changes (login/logout)
 
   const sendOtp = async (email: string) => {
     try {
@@ -293,7 +218,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut, sendOtp, verifyAdminLogin, showOnboarding, setShowOnboarding, refreshUser, socket }}>
+    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut, sendOtp, verifyAdminLogin, showOnboarding, setShowOnboarding, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

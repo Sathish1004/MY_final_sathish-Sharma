@@ -32,4 +32,24 @@ const admin = (req, res, next) => {
     }
 };
 
-export { protect, admin };
+const lenientAuth = (req, res, next) => {
+    let token;
+    if (
+        req.headers.authorization &&
+        req.headers.authorization.startsWith('Bearer')
+    ) {
+        try {
+            token = req.headers.authorization.split(' ')[1];
+            if (token && token !== 'null' && token !== 'undefined') {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                req.user = decoded;
+            }
+        } catch (error) {
+            // Logged out or invalid token, but okay for lenient auth
+            console.error('Lenient auth error:', error.message);
+        }
+    }
+    next();
+};
+
+export { protect, admin, lenientAuth };

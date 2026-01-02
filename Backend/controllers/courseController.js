@@ -20,9 +20,7 @@ export const getAllCourses = async (req, res) => {
             SELECT c.*, 
             COUNT(DISTINCT e.id) as enrolled,
             COUNT(DISTINCT CASE WHEN e.progress = 100 THEN e.id END) as completed,
-            IFNULL(AVG(cr.rating), 0) as rating,
-            (SELECT COUNT(*) FROM course_modules WHERE course_id = c.id) as total_modules,
-            (SELECT IFNULL(SUM(duration_seconds), 0) FROM course_modules WHERE course_id = c.id) as total_duration
+            IFNULL(AVG(cr.rating), 0) as rating
             FROM courses c
             LEFT JOIN enrollments e ON c.id = e.course_id
             LEFT JOIN course_ratings cr ON c.id = cr.course_id
@@ -61,34 +59,6 @@ export const getAllCourses = async (req, res) => {
             console.error("Failed to write debug log", e);
         }
         res.status(500).json({ message: "Server error fetching courses", error: error.message });
-    }
-};
-
-// @desc    Get Single Course
-// @route   GET /api/courses/:id
-export const getCourseById = async (req, res) => {
-    const { id } = req.params;
-    try {
-        const connection = await mysql.createConnection(dbConfig);
-        const [rows] = await connection.execute(
-            `SELECT c.*, 
-            COUNT(DISTINCT up.id) as students,
-            IFNULL(AVG(cr.rating), 0) as rating
-            FROM courses c
-            LEFT JOIN user_progress up ON c.id = up.course_id
-            LEFT JOIN course_ratings cr ON c.id = cr.course_id
-            WHERE c.id = ?
-            GROUP BY c.id`,
-            [id]
-        );
-        await connection.end();
-
-        if (rows.length === 0) return res.status(404).json({ message: "Course not found" });
-
-        res.json(rows[0]);
-    } catch (error) {
-        console.error("Error fetching course:", error);
-        res.status(500).json({ message: "Server error" });
     }
 };
 
@@ -272,150 +242,17 @@ export const getCourseStudents = async (req, res) => {
     const { id } = req.params;
     try {
         const connection = await mysql.createConnection(dbConfig);
-        // Joining with user_progress instead of enrollments
         const [students] = await connection.execute(`
-            SELECT u.id, u.name, u.email, u.status, up.last_accessed_at as enrolled_at, up.completion_percent as progress
-            FROM user_progress up
-            JOIN users u ON up.user_id = u.id
-            WHERE up.course_id = ?
-            ORDER BY up.last_accessed_at DESC
+            SELECT u.id, u.name, u.email, u.status, e.enrolled_at, e.progress
+            FROM enrollments e
+            JOIN users u ON e.user_id = u.id
+            WHERE e.course_id = ?
+            ORDER BY e.enrolled_at DESC
         `, [id]);
         await connection.end();
         res.json(students);
     } catch (error) {
         console.error("Error fetching students:", error);
         res.status(500).json({ message: "Server error fetching students" });
-    }
-};
-// @desc    Enroll User in Course
-// @route   POST /api/courses/:id/enroll
-export const enrollUser = async (req, res) => {
-    const { id: courseId } = req.params;
-    const userId = req.user.id;
-
-    if (!userId) {
-        return res.status(401).json({ message: "User not authenticated" });
-    }
-
-    try {
-        const connection = await mysql.createConnection(dbConfig);
-
-        // Check if already enrolled (check user_progress)
-        const [existing] = await connection.execute(
-            "SELECT id FROM user_progress WHERE user_id = ? AND course_id = ?",
-            [userId, courseId]
-        );
-
-        if (existing.length > 0) {
-            await connection.end();
-            return res.status(400).json({ message: "Already enrolled in this course" });
-        }
-
-        // Initialize user_progress
-        const [result] = await connection.execute(
-            `INSERT INTO user_progress 
-            (user_id, course_id, completed_modules, total_modules, completion_percent, status, last_accessed_at) 
-            VALUES (?, ?, 0, 0, 0, 'In Progress', NOW())`,
-            [userId, courseId]
-        );
-
-        // Also log activity
-        await connection.execute(
-            `INSERT INTO learning_activity (user_id, course_id, time_spent_seconds, activity_date) VALUES (?, ?, 0, CURDATE())`,
-            [userId, courseId]
-        );
-
-        await connection.end();
-
-        res.status(201).json({ message: "Enrolled successfully", enrollmentId: result.insertId });
-
-    } catch (error) {
-        console.error("Error enrolling user:", error);
-        res.status(500).json({ message: "Server error enrolling user" });
-    }
-};
-// @desc    Update Course Progress (Legacy PUT /api/courses/:id/progress - kept for compatibility but updated logic)
-// @route   PUT /api/courses/:id/progress
-export const updateCourseProgress = async (req, res) => {
-    const { id: courseId } = req.params;
-    const { progress, status } = req.body;
-    const userId = req.user.id;
-
-    try {
-        const connection = await mysql.createConnection(dbConfig);
-
-        // Update user_progress
-        // We assume progress is percentage here from frontend for now, or we calculate if modules provided
-        // For simplicity reusing the frontend percentage if sent, but ideally we should calculate from modules
-
-        await connection.execute(
-            "UPDATE user_progress SET completion_percent = ?, status = ?, last_accessed_at = NOW() WHERE user_id = ? AND course_id = ?",
-            [progress, status, userId, courseId]
-        );
-
-        await connection.end();
-        res.json({ message: "Progress updated" });
-    } catch (error) {
-        console.error("Error updating progress:", error);
-        res.status(500).json({ message: "Server error updating progress" });
-    }
-};
-
-// @desc    Detailed Progress Update (New POST /api/progress/update)
-// @route   POST /api/progress/update
-export const logProgress = async (req, res) => {
-    const { courseId, completedModules, totalModules, status } = req.body;
-    const userId = req.user.id;
-
-    try {
-        const connection = await mysql.createConnection(dbConfig);
-
-        const percent = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0;
-        const newStatus = percent === 100 ? 'Completed' : (status || 'In Progress');
-
-        // Upsert logic
-        const query = `
-            INSERT INTO user_progress (user_id, course_id, completed_modules, total_modules, completion_percent, status, last_accessed_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
-            ON DUPLICATE KEY UPDATE 
-            completed_modules = VALUES(completed_modules), 
-            total_modules = VALUES(total_modules), 
-            completion_percent = VALUES(completion_percent), 
-            status = VALUES(status), 
-            last_accessed_at = NOW(),
-            updated_at = NOW()
-        `;
-
-        await connection.execute(query, [userId, courseId, completedModules, totalModules, percent, newStatus]);
-
-        await connection.end();
-        res.json({ message: "Progress logged successfully", percent, status: newStatus });
-    } catch (error) {
-        console.error("Error logging progress:", error);
-        res.status(500).json({ message: "Server error logging progress" });
-    }
-};
-
-// @desc    Get Student Enrollments (My Learning)
-// @route   GET /api/courses/my-courses
-export const getStudentEnrollments = async (req, res) => {
-    const userId = req.user.id;
-    try {
-        const connection = await mysql.createConnection(dbConfig);
-
-        // Joining with user_progress
-        const [enrollments] = await connection.execute(`
-            SELECT up.course_id, up.completion_percent as progress, up.status, up.last_accessed_at as enrolled_at, 
-                   c.title, c.thumbnail 
-            FROM user_progress up
-            JOIN courses c ON up.course_id = c.id
-            WHERE up.user_id = ?
-        `, [userId]);
-
-        await connection.end();
-        res.json(enrollments);
-    } catch (error) {
-        console.error("Error fetching enrollments:", error);
-        res.status(500).json({ message: "Server error fetching enrollments" });
     }
 };

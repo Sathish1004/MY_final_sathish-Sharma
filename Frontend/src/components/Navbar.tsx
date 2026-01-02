@@ -28,7 +28,7 @@ export default function Navbar({ onLoginClick }: NavbarProps) {
     };
 
     return (
-        <nav className="fixed w-full z-50 top-0 start-0 bg-white shadow-none transition-all duration-300">
+        <nav className="fixed w-full z-50 top-0 start-0 border-b border-slate-200/60 bg-white/80 backdrop-blur-md supports-[backdrop-filter]:bg-white/60 transition-all duration-300">
             <div className="container flex items-center justify-between h-20 px-6 mx-auto">
                 {/* 1. Logo (Far Left) */}
                 <div

@@ -124,50 +124,58 @@ export const verifyAdminOtp = async (req, res) => {
 
 export const login = async (req, res) => {
     let { email, password } = req.body;
+    console.log(`[LOGIN ATTEMPT] Email: '${email}', Password: '${password}'`);
+
     email = email.trim(); // Trim input email
     try {
         // Check admin table FIRST
         const [admins] = await db.query('SELECT * FROM admin WHERE email = ?', [email]);
 
         if (admins.length > 0) {
+            console.log('[LOGIN] Found ADMIN');
             const admin = admins[0];
 
             // Compare plain text password as per requirement for admin
-            if (password !== admin.password) {
-                return res.status(400).json({ message: 'Invalid credentials' });
+            if (password === admin.password) {
+                console.log('[LOGIN] Admin password match');
+                // *** ADMIN OTP FLOW ***
+                const otp = generateOTP();
+                const expiresAt = new Date(Date.now() + 5 * 60000); // 5 mins
+
+                // Store OTP
+                await db.query(`
+                     INSERT INTO otp_codes (email, otp_code, expires_at, created_at)
+                     VALUES (?, ?, ?, NOW())
+                     ON DUPLICATE KEY UPDATE 
+                     otp_code = VALUES(otp_code), expires_at = VALUES(expires_at), created_at = NOW()
+                 `, [email, otp, expiresAt]);
+
+                // Send Email
+                const emailSent = await sendOtpEmail(email, otp);
+                if (!emailSent) {
+                    return res.status(500).json({ message: 'Failed to send verification email' });
+                }
+
+                return res.json({
+                    status: 'OTP_SENT',
+                    message: 'OTP has been sent to your email for admin verification',
+                    email: email
+                });
+            } else {
+                console.log('[LOGIN] Admin password mismatch, checking users table for fallback...');
             }
-
-            // *** ADMIN OTP FLOW ***
-            const otp = generateOTP();
-            const expiresAt = new Date(Date.now() + 5 * 60000); // 5 mins
-
-            // Store OTP
-            await db.query(`
-                INSERT INTO otp_codes (email, otp_code, expires_at, created_at)
-                VALUES (?, ?, ?, NOW())
-                ON DUPLICATE KEY UPDATE 
-                otp_code = VALUES(otp_code), expires_at = VALUES(expires_at), created_at = NOW()
-            `, [email, otp, expiresAt]);
-
-            // Send Email
-            const emailSent = await sendOtpEmail(email, otp);
-            if (!emailSent) {
-                return res.status(500).json({ message: 'Failed to send verification email' });
-            }
-
-            return res.json({
-                status: 'OTP_SENT',
-                message: 'OTP has been sent to your email for admin verification',
-                email: email
-            });
         }
 
         // Then check users table (Students)
         const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+        console.log(`[LOGIN] User Search Result Count: ${users.length}`);
 
         if (users.length > 0) {
             const user = users[0];
+            console.log(`[LOGIN] Verifying password for User ID: ${user.id}`);
             const isMatch = await bcrypt.compare(password, user.password);
+            console.log(`[LOGIN] Bcrypt Match Result: ${isMatch}`);
+
             if (!isMatch) {
                 return res.status(400).json({ message: 'Invalid credentials' });
             }
@@ -183,6 +191,7 @@ export const login = async (req, res) => {
             return res.json({ token, user: { id: user.id, name: user.name, email: user.email, role, profile_picture: user.profile_picture, resume_path: user.resume_path } });
         }
 
+        console.log('[LOGIN] No user found');
         return res.status(400).json({ message: 'Invalid credentials' });
 
     } catch (error) {

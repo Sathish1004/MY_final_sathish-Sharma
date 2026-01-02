@@ -9,12 +9,6 @@ import { useToast } from '@/hooks/use-toast';
 // Updated Steps per specific request - ALL 10 MODULES
 const TOUR_STEPS = [
     {
-        targetId: 'nav-item-dashboard',
-        title: 'Dashboard',
-        description: 'View your overall progress, stats, and recent activity.',
-        sidebarHighlight: 'Dashboard'
-    },
-    {
         targetId: 'nav-item-courses',
         title: 'Courses',
         description: 'Access structured courses and track your learning progress.',
@@ -67,6 +61,12 @@ const TOUR_STEPS = [
         title: 'Feedback',
         description: 'Share your feedback to improve the platform.',
         sidebarHighlight: 'Feedback'
+    },
+    {
+        targetId: 'nav-item-dashboard',
+        title: 'Dashboard',
+        description: 'View your overall progress, stats, and recent activity.',
+        sidebarHighlight: 'Dashboard'
     }
 ];
 

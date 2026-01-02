@@ -10,12 +10,10 @@ import {
     Heart,
     CheckCircle2
 } from 'lucide-react';
-import { quickLinks } from '@/config/quickLinks';
-import { SmartLink } from '@/components/common/SmartLink';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Footer = () => {
-    // const { user } = useAuth(); // Removed as SmartLink handles auth internally
-
+    const { user } = useAuth();
     return (
         <footer className="bg-gradient-to-br from-[#020617] via-[#0b1221] to-[#020617] text-slate-300 border-t border-white/5 relative overflow-hidden">
             {/* Background Effects */}
@@ -55,9 +53,34 @@ const Footer = () => {
                             <span className="h-[2px] w-12 bg-blue-500/50 rounded-full"></span>
                         </h3>
                         <ul className="grid gap-4">
-                            {quickLinks.map((link) => (
-                                <li key={link.id}>
-                                    <SmartLink link={link} variant="footer" />
+                            {(user ? [
+                                { label: "Dashboard", href: "/dashboard" },
+                                { label: "Courses", href: "/courses" },
+                                { label: "Coding Arena", href: "/coding" },
+                                { label: "Mentorship", href: "/mentors" },
+                                { label: "Jobs & Internships", href: "/jobs" },
+                                { label: "Projects", href: "/projects" },
+                                { label: "Events", href: "/events" },
+                                { label: "Certifications", href: "/dashboard" }, // Fallback to dashboard for now
+                                { label: "Community", href: "/dashboard" },
+                                { label: "Pricing", href: "/pricing" }
+                            ] : [
+                                { label: "Home", href: "/" },
+                                { label: "Why Prolync?", href: "/#why-choose-workspace" },
+                                { label: "Pricing", href: "/pricing" },
+                                { label: "About Us", href: "/about-prolync" },
+                                { label: "Contact", href: "/contact" },
+                                { label: "Login / Register", href: "/login" }
+                            ]).map((item, i) => (
+                                <li key={i}>
+                                    <Link
+                                        to={item.href}
+                                        className="group flex items-center gap-2 text-slate-400 hover:text-white transition-all duration-300"
+                                        onClick={() => window.scrollTo(0, 0)}
+                                    >
+                                        <ArrowRight className="w-3.5 h-3.5 text-blue-500 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+                                        <span className="text-[15px]">{item.label}</span>
+                                    </Link>
                                 </li>
                             ))}
                         </ul>

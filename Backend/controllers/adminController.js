@@ -16,7 +16,7 @@ export const getAllUsers = async (req, res) => {
                 ELSE status 
             END as status,
             gender, created_at, last_login,
-            (SELECT COALESCE(AVG(completion_percent), 0) FROM user_progress WHERE user_id = users.id) as progress
+            (SELECT COALESCE(AVG(progress), 0) FROM enrollments WHERE user_id = users.id) as progress
             FROM users WHERE 1=1`;
         let countQuery = 'SELECT COUNT(*) as total FROM users WHERE 1=1';
         const params = [];
@@ -198,7 +198,7 @@ export const getUserDetails = async (req, res) => {
 
         // 1. Fetch Basic User Profile
         const [userResult] = await db.query(
-            'SELECT id, name, email, role, status, created_at, last_login, profile_picture, resume_path, phone_number, bio, location, github, linkedin, gender, college_name FROM users WHERE id = ?',
+            'SELECT id, name, email, role, status, created_at, last_login, profile_picture, resume_path FROM users WHERE id = ?',
             [id]
         );
 
@@ -220,15 +220,15 @@ export const getUserDetails = async (req, res) => {
             console.warn("Activity logs fetch error:", err.message);
         }
 
-        // 3. Fetch Enrolled Courses (from user_progress)
+        // 3. Fetch Enrollments
         let enrollments = [];
         try {
             const [courses] = await db.query(
-                `SELECT c.id, c.title, up.last_accessed_at as enrolled_at, up.completion_percent as progress, up.status 
-                 FROM user_progress up 
-                 JOIN courses c ON up.course_id = c.id 
-                 WHERE up.user_id = ? 
-                 ORDER BY up.last_accessed_at DESC LIMIT 5`,
+                `SELECT c.id, c.title, e.enrolled_at, e.progress 
+                 FROM enrollments e 
+                 JOIN courses c ON e.course_id = c.id 
+                 WHERE e.user_id = ? 
+                 ORDER BY e.enrolled_at DESC LIMIT 5`,
                 [id]
             );
             enrollments = courses;
@@ -302,16 +302,14 @@ export const getUserDetails = async (req, res) => {
             console.warn("Mentorship fetch error:", err.message);
         }
 
-        // 6. Construct Extended Profile (Now using real data)
+        // 6. Construct Extended Profile (Mix of Real + Mock for UI richness)
         const extendedProfile = {
-            // Default fallbacks if null
-            phone: user.phone_number || "N/A",
-            location: user.location || "Unknown",
-            login_method: "Email/Password", // Still mock unless we track it
-            bio: user.bio || "No bio added yet.",
-            github: user.github || "Not connected",
-            linkedin: user.linkedin || "Not connected",
-            gender: user.gender || "Not Specified",
+            phone: "+91 98765 43210", // Mock
+            location: "Chennai, India", // Mock
+            login_method: "Email/Password", // Mock
+            bio: "Passionate learner exploring Full Stack Development.", // Mock
+            github: "github.com/" + user.name.replace(/\s+/g, '').toLowerCase(), // Mock derived
+            linkedin: "linkedin.com/in/" + user.name.replace(/\s+/g, '').toLowerCase(), // Mock derived
             ...user
         };
 
@@ -326,139 +324,5 @@ export const getUserDetails = async (req, res) => {
     } catch (error) {
         console.error('Error fetching user details:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
-    }
-};
-
-// @desc    Get specific user's calendar data for Admin View
-// @route   GET /api/admin/users/:id/calendar
-export const getUserCalendarData = async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        // Fetch learning sessions (time spent)
-        const [learningRows] = await db.query(`
-            SELECT activity_date, time_spent_seconds, course_id
-            FROM learning_activity 
-            WHERE user_id = ?
-            ORDER BY activity_date DESC
-        `, [id]);
-
-        // Fetch activity logs
-        const [logRows] = await db.query(`
-            SELECT created_at, action, details
-            FROM activity_logs
-            WHERE user_id = ?
-        `, [id]);
-
-        // Merge Data
-        const calendarMap = {};
-
-        learningRows.forEach(row => {
-            const date = row.activity_date.toISOString().split('T')[0];
-            if (!calendarMap[date]) {
-                calendarMap[date] = { date, timeSpent: 0, actions: [], courses: new Set() };
-            }
-            calendarMap[date].timeSpent += row.time_spent_seconds;
-        });
-
-        logRows.forEach(row => {
-            const date = row.created_at.toISOString().split('T')[0];
-            if (!calendarMap[date]) {
-                calendarMap[date] = { date, timeSpent: 0, actions: [], courses: new Set() };
-            }
-            calendarMap[date].actions.push(row.details);
-        });
-
-        const result = Object.values(calendarMap).map(day => ({
-            ...day,
-            courses: Array.from(day.courses)
-        }));
-
-        res.json(result);
-
-    } catch (error) {
-        console.error('Error fetching user calendar:', error);
-        res.status(500).json({ message: 'Server error' });
-    }
-};
-
-// @desc    Get specific user's learning stats for Admin View
-// @route   GET /api/admin/users/:id/stats
-export const getUserLearningStats = async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        // 1. Total Minutes
-        const [activities] = await db.query(
-            "SELECT SUM(time_spent_seconds) as total_seconds FROM learning_activity WHERE user_id = ?",
-            [id]
-        );
-        const totalMinutes = Math.round((activities[0].total_seconds || 0) / 60);
-
-        // 2. Streak (from learning_streak table)
-        const [streakRows] = await db.query(
-            "SELECT current_streak, max_streak, last_active_date FROM learning_streak WHERE user_id = ?",
-            [id]
-        );
-        const streakData = streakRows.length > 0 ? streakRows[0] : { current_streak: 0, max_streak: 0, last_active_date: null };
-
-        // 3. Course Counts
-        const [progressRows] = await db.query(
-            "SELECT status FROM user_progress WHERE user_id = ?",
-            [id]
-        );
-
-        let completedCourses = 0;
-        let activeCourses = 0;
-        progressRows.forEach(row => {
-            if (row.status === 'Completed') completedCourses++;
-            else if (row.status === 'In Progress') activeCourses++;
-        });
-
-        // 4. Not Started
-        const [totalCoursesRes] = await db.query("SELECT COUNT(*) as count FROM courses");
-        const totalCourses = totalCoursesRes[0].count;
-        const enrolledCount = progressRows.length;
-        const notStartedCourses = Math.max(0, totalCourses - enrolledCount);
-
-        res.json({
-            totalMinutes,
-            streak: streakData.current_streak,
-            maxStreak: streakData.max_streak,
-            lastActive: streakData.last_active_date,
-            completedCourses,
-            activeCourses,
-            notStartedCourses
-        });
-
-    } catch (error) {
-        console.error('Error fetching user stats:', error);
-        res.status(500).json({ message: 'Server error' });
-    }
-};
-
-// @desc    Get All Students Progress (Dedicated Endpoint)
-// @route   GET /api/admin/students/progress
-export const getStudentProgress = async (req, res) => {
-    try {
-        const query = `
-            SELECT u.id, u.name, u.email,
-            COUNT(up.course_id) as total_courses,
-            SUM(CASE WHEN up.status = 'Completed' THEN 1 ELSE 0 END) as completed_courses,
-            AVG(up.completion_percent) as avg_progress,
-            (SELECT COUNT(*) FROM certificates WHERE user_id = u.id) as certificates_earned,
-            (SELECT SUM(time_spent_seconds) FROM learning_activity WHERE user_id = u.id) as total_learning_time
-            FROM users u
-            LEFT JOIN user_progress up ON u.id = up.user_id
-            WHERE u.role = 'Student'
-            GROUP BY u.id
-            ORDER BY avg_progress DESC
-        `;
-
-        const [rows] = await db.query(query);
-        res.json(rows);
-    } catch (error) {
-        console.error("Error fetching student progress:", error);
-        res.status(500).json({ message: "Server error" });
     }
 };
