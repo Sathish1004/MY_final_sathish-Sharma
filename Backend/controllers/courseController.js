@@ -55,7 +55,7 @@ export const getAllCourses = async (req, res) => {
     } catch (error) {
         console.error("Error fetching courses:", error);
         try {
-            const logPath = 'c:\\Users\\srid5\\Desktop\\prolync documents\\LateComers\\laptop\\Backend\\debug_controller_error.log';
+            const logPath = 'debug_controller_error.log';
             fs.writeFileSync(logPath, `TIMESTAMP: ${new Date().toISOString()}\nERROR: ${error.message}\nSTACK: ${error.stack}\n`);
         } catch (e) {
             console.error("Failed to write debug log", e);
@@ -218,7 +218,7 @@ export const getCourseCurriculum = async (req, res) => {
 
         // Fetch Modules
         const [modules] = await connection.execute(
-            "SELECT * FROM modules WHERE course_id = ? ORDER BY order_index ASC",
+            "SELECT * FROM course_modules WHERE course_id = ? ORDER BY order_index ASC",
             [id]
         );
 
@@ -228,7 +228,7 @@ export const getCourseCurriculum = async (req, res) => {
         const [rows] = await connection.execute(`
             SELECT m.id as module_id, m.title as module_title, 
                    l.id as lesson_id, l.title as lesson_title, l.duration
-            FROM modules m
+            FROM course_modules m
             LEFT JOIN lessons l ON m.id = l.module_id
             WHERE m.course_id = ?
             ORDER BY m.order_index, l.order_index

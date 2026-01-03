@@ -54,11 +54,14 @@ export default function Feedback() {
       return;
     }
 
-    // Check if at least one rating is provided
-    if (Object.keys(ratings).length === 0) {
+    // Check if all mandatory ratings are provided
+    const requiredCategories = ['course', 'ui', 'ux', 'coding', 'general'];
+    const missingCategories = requiredCategories.filter(cat => !ratings[cat]);
+
+    if (missingCategories.length > 0) {
       toast({
-        title: 'Missing Ratings',
-        description: 'Please provide a rating for at least one category',
+        title: 'Incomplete Feedback',
+        description: 'Please provide a rating for all categories/sections before submitting.',
         variant: 'destructive'
       });
       return;
@@ -73,15 +76,15 @@ export default function Feedback() {
 
       const feedbackData = {
         user_id: user.id,
-        user_name: user?.name || user.email?.split('@')[0] || 'Anonymous',
+        user_name: user.name || user.email?.split('@')[0] || 'Anonymous',
         rating: avgRating,
         category: 'Comprehensive',
-        rating_course: ratings['course'] || 0,
-        rating_ui: ratings['ui'] || 0,
-        rating_ux: ratings['ux'] || 0,
-        rating_coding: ratings['coding'] || 0,
-        // message is mapped to General Feedback rating for now as we don't have a separate text field for it in design
-        message: ratings['general'] ? `General Rating: ${ratings['general']}/5` : '',
+        rating_course: ratings['course'],
+        rating_ui: ratings['ui'],
+        rating_ux: ratings['ux'],
+        rating_coding: ratings['coding'],
+        rating_general: ratings['general'],
+        message: `General Rating: ${ratings['general']}/5`, // Keep for backward compatibility if needed
         comments: description.trim()
       };
 
@@ -94,7 +97,8 @@ export default function Feedback() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to submit feedback');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to submit feedback');
       }
 
       setSubmitted(true);
@@ -106,7 +110,7 @@ export default function Feedback() {
       console.error('Error submitting feedback:', error);
       toast({
         title: 'Error',
-        description: 'Failed to submit feedback. Please try again.',
+        description: error instanceof Error ? error.message : 'Failed to submit feedback. Please try again.',
         variant: 'destructive'
       });
     } finally {

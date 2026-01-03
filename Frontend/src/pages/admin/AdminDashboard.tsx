@@ -741,7 +741,7 @@ function MentorshipManagement() {
     );
 }
 
-function JobsManagement() {
+function JobsTab() {
     const [jobs, setJobs] = useState<Job[]>([]);
     const [filter, setFilter] = useState<'All' | 'Internship' | 'Full-time' | 'Closed'>('All');
     const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -1236,40 +1236,384 @@ function JobsManagement() {
 }
 
 
-function PlacementsManagement() {
+function PlacementsTab() {
+    const [placements, setPlacements] = useState<any[]>([]);
+    const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [currentId, setCurrentId] = useState<number | null>(null);
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [videoFile, setVideoFile] = useState<File | null>(null);
+
+    const [formData, setFormData] = useState({
+        student_name: '',
+        student_email: '',
+        course: '',
+        company_name: '',
+        job_role: '',
+        placement_type: 'Full-time',
+        location: '',
+        package: '',
+        placement_date: new Date().toISOString().split('T')[0],
+        status: 'Placed',
+        placement_story: '',
+        interview_experience: '',
+        technical_questions: '',
+        image_url: '',
+        video_url: '',
+        thumbnail_url: ''
+    });
+
+    const fetchPlacements = async () => {
+        try {
+            const res = await fetch(API_URL + '/api/placements/all');
+            if (res.ok) {
+                const data = await res.json();
+                setPlacements(data);
+            }
+        } catch (error) {
+            console.error("Failed to fetch placements", error);
+        }
+    };
+
+    useEffect(() => {
+        fetchPlacements();
+    }, []);
+
+    const handleSave = async () => {
+        const url = currentId
+            ? `${API_URL}/api/placements/${currentId}`
+            : `${API_URL}/api/placements/add`;
+        const method = currentId ? 'PUT' : 'POST';
+
+        const data = new FormData();
+        Object.entries(formData).forEach(([key, value]) => {
+            if (value !== null && value !== undefined) data.append(key, value);
+        });
+        if (imageFile) data.append('image', imageFile);
+        if (videoFile) data.append('video', videoFile);
+
+        try {
+            const res = await fetch(url, {
+                method,
+                // headers: { 'Content-Type': 'multipart/form-data' }, // Let browser set boundary
+                body: data
+            });
+            if (res.ok) {
+                fetchPlacements();
+                setIsSheetOpen(false);
+                resetForm();
+            }
+        } catch (error) {
+            console.error("Failed to save placement", error);
+        }
+    };
+
+    const resetForm = () => {
+        setImageFile(null);
+        setVideoFile(null);
+        setFormData({
+            student_name: '',
+            student_email: '',
+            course: '',
+            company_name: '',
+            job_role: '',
+            placement_type: 'Full-time',
+            location: '',
+            package: '',
+            placement_date: new Date().toISOString().split('T')[0],
+            status: 'Placed',
+            placement_story: '',
+            interview_experience: '',
+            technical_questions: '',
+            image_url: '',
+            video_url: '',
+            thumbnail_url: ''
+        });
+    };
+
+    const handleEdit = (item: any) => {
+        setCurrentId(item.id);
+        const safeDate = item.placement_date ? new Date(item.placement_date).toISOString().split('T')[0] : '';
+        setFormData({
+            student_name: item.student_name,
+            student_email: item.student_email,
+            course: item.course,
+            company_name: item.company_name,
+            job_role: item.job_role,
+            placement_type: item.placement_type,
+            location: item.location || '',
+            package: item.package || '',
+            placement_date: safeDate,
+            status: item.status,
+            placement_story: item.placement_story || '',
+            interview_experience: item.interview_experience || '',
+            technical_questions: item.technical_questions || '',
+            image_url: item.image_url || '',
+            video_url: item.video_url || '',
+            thumbnail_url: item.thumbnail_url || ''
+        });
+        setImageFile(null); // Reset files on edit open
+        setVideoFile(null);
+        setIsEditing(true);
+        setIsSheetOpen(true);
+    };
+
+    const handleDelete = async (id: number) => {
+        if (!confirm("Delete this placement record?")) return;
+        try {
+            await fetch(`${API_URL}/api/placements/${id}`, { method: 'DELETE' });
+            fetchPlacements();
+        } catch (error) {
+            console.error("Failed to delete", error);
+        }
+    };
+
+    const openNew = () => {
+        setIsEditing(false);
+        setCurrentId(null);
+        resetForm();
+        setIsSheetOpen(true);
+    };
+
+
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Jobs & Placements</CardTitle>
-                <CardDescription>Track job applications and placement success.</CardDescription>
+        <Card className="border-none shadow-none">
+            <CardHeader className="px-0 pt-0 pb-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <CardTitle className="text-2xl font-bold">Placement Records</CardTitle>
+                        <CardDescription>Manage successful student placements.</CardDescription>
+                    </div>
+                    <Button onClick={openNew} className="bg-green-600 hover:bg-green-700">
+                        <Plus className="h-4 w-4 mr-2" /> Add Placement
+                    </Button>
+                </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-0">
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Company</TableHead>
-                            <TableHead>Role</TableHead>
                             <TableHead>Student</TableHead>
+                            <TableHead>Company & Role</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Package</TableHead>
                             <TableHead>Date</TableHead>
                             <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Action</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {JOB_APPLICATIONS.map((job) => (
-                            <TableRow key={job.id}>
-                                <TableCell className="font-medium">{job.company}</TableCell>
-                                <TableCell>{job.role}</TableCell>
-                                <TableCell>{job.student}</TableCell>
-                                <TableCell>{job.date}</TableCell>
+                        {placements.map((p) => (
+                            <TableRow key={p.id}>
                                 <TableCell>
-                                    <Badge variant="outline">{job.status}</Badge>
+                                    <div>
+                                        <p className="font-semibold">{p.student_name}</p>
+                                        <p className="text-xs text-muted-foreground">{p.course}</p>
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <div>
+                                        <p className="font-medium">{p.company_name}</p>
+                                        <p className="text-sm text-slate-500">{p.job_role}</p>
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <Badge variant="outline">{p.placement_type}</Badge>
+                                </TableCell>
+                                <TableCell>{p.package}</TableCell>
+                                <TableCell>{new Date(p.placement_date).toLocaleDateString()}</TableCell>
+                                <TableCell>
+                                    <Badge className={p.status === 'Placed' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}>
+                                        {p.status}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <Button size="sm" variant="ghost" onClick={() => handleEdit(p)}>Edit</Button>
+                                    <Button size="sm" variant="ghost" className="text-red-600" onClick={() => handleDelete(p.id)}>Delete</Button>
                                 </TableCell>
                             </TableRow>
                         ))}
+                        {placements.length === 0 && (
+                            <TableRow>
+                                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No placement records found.</TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </CardContent>
+
+            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                <SheetContent className="sm:max-w-lg overflow-y-auto">
+                    <SheetHeader>
+                        <SheetTitle>{isEditing ? 'Edit Placement' : 'Add Placement'}</SheetTitle>
+                        <SheetDescription>Enter details of the placed student.</SheetDescription>
+                    </SheetHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Student Name</Label>
+                                <Input value={formData.student_name} onChange={e => setFormData({ ...formData, student_name: e.target.value })} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Email / ID</Label>
+                                <Input value={formData.student_email} onChange={e => setFormData({ ...formData, student_email: e.target.value })} />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Course / Dept</Label>
+                            <Input value={formData.course} onChange={e => setFormData({ ...formData, course: e.target.value })} placeholder="e.g. B.Tech CSE" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Company</Label>
+                                <Input value={formData.company_name} onChange={e => setFormData({ ...formData, company_name: e.target.value })} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Role</Label>
+                                <Input value={formData.job_role} onChange={e => setFormData({ ...formData, job_role: e.target.value })} />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Type</Label>
+                                <Select value={formData.placement_type} onValueChange={(val: any) => setFormData({ ...formData, placement_type: val })}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Full-time">Full-time</SelectItem>
+                                        <SelectItem value="Internship">Internship</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Package (LPA)</Label>
+                                <Input value={formData.package} onChange={e => setFormData({ ...formData, package: e.target.value })} placeholder="e.g. 12 LPA" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Location</Label>
+                                <Input value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Date</Label>
+                                <Input type="date" value={formData.placement_date} onChange={e => setFormData({ ...formData, placement_date: e.target.value })} />
+                            </div>
+                        </div>
+
+                        <div className="space-y-4 pt-4 border-t">
+                            <h3 className="font-semibold text-lg">Success Story & Experience</h3>
+
+                            <div className="space-y-2">
+                                <Label>Placement Preparation Story</Label>
+                                <Textarea
+                                    value={formData.placement_story || ''}
+                                    onChange={e => setFormData({ ...formData, placement_story: e.target.value })}
+                                    placeholder="Share the preparation strategy..."
+                                    className="min-h-[100px]"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Interview Experience</Label>
+                                <Textarea
+                                    value={formData.interview_experience || ''}
+                                    onChange={e => setFormData({ ...formData, interview_experience: e.target.value })}
+                                    placeholder="Describe the interview process..."
+                                    className="min-h-[100px]"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Technical / HR Questions</Label>
+                                <Textarea
+                                    value={formData.technical_questions || ''}
+                                    onChange={e => setFormData({ ...formData, technical_questions: e.target.value })}
+                                    placeholder="List important questions asked..."
+                                    className="min-h-[100px]"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-4 pt-4 border-t">
+                            <h3 className="font-semibold text-lg">Media & Links</h3>
+
+                            <div className="space-y-2">
+                                <Label>Student Image (Upload)</Label>
+                                <Input type="file" accept="image/*" onChange={e => {
+                                    if (e.target.files?.[0]) setImageFile(e.target.files[0]);
+                                }} />
+                                {formData.image_url && !imageFile && (
+                                    <p className="text-xs text-green-600">Current: {formData.image_url.split('/').pop()}</p>
+                                )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Video (Upload)</Label>
+                                <Input type="file" accept="video/*" onChange={e => {
+                                    if (e.target.files?.[0]) setVideoFile(e.target.files[0]);
+                                }} />
+                                {formData.video_url && !videoFile && (
+                                    <p className="text-xs text-green-600">Current: {formData.video_url.split('/').pop()}</p>
+                                )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Thumbnail URL (Optional)</Label>
+                                <Input value={formData.thumbnail_url || ''} onChange={e => setFormData({ ...formData, thumbnail_url: e.target.value })} placeholder="https://..." />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Status</Label>
+                            <Select value={formData.status} onValueChange={(val: any) => setFormData({ ...formData, status: val })}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Placed">Placed</SelectItem>
+                                    <SelectItem value="Offer Received">Offer Received</SelectItem>
+                                    <SelectItem value="Joined">Joined</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="pt-4 flex justify-end gap-2">
+                            <Button variant="outline" onClick={() => setIsSheetOpen(false)}>Cancel</Button>
+                            <Button onClick={handleSave}>Save Record</Button>
+                        </div>
+                    </div>
+                </SheetContent>
+            </Sheet>
         </Card>
+    );
+}
+
+function JobsManagement() {
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-3xl font-bold tracking-tight">Jobs & Placements</h2>
+                    <p className="text-muted-foreground">Manage active job postings and track student placements.</p>
+                </div>
+            </div>
+
+            <Tabs defaultValue="jobs" className="space-y-4">
+                <TabsList>
+                    <TabsTrigger value="jobs" className="flex items-center gap-2">
+                        <Briefcase className="h-4 w-4" />
+                        Job Postings
+                    </TabsTrigger>
+                    <TabsTrigger value="placements" className="flex items-center gap-2">
+                        <Trophy className="h-4 w-4" />
+                        Placements
+                    </TabsTrigger>
+                </TabsList>
+                <TabsContent value="jobs" className="space-y-4">
+                    <JobsTab />
+                </TabsContent>
+                <TabsContent value="placements" className="space-y-4">
+                    <PlacementsTab />
+                </TabsContent>
+            </Tabs>
+        </div>
     );
 }
 
@@ -1842,6 +2186,10 @@ function FeedbackManagement() {
                                                             <div className="flex justify-between items-center text-slate-600">
                                                                 <span>Code:</span>
                                                                 <span className="font-medium text-slate-900">{item.rating_coding || '-'}</span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center text-slate-600">
+                                                                <span>General:</span>
+                                                                <span className="font-medium text-slate-900">{item.rating_general || '-'}</span>
                                                             </div>
                                                         </div>
                                                     </TableCell>

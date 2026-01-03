@@ -17,7 +17,10 @@ import codingRoutes from './routes/codingRoutes.js';
 import mentorshipRoutes from './routes/mentorshipRoutes.js';
 import jobRoutes from './routes/jobRoutes.js';
 import newsRoutes from './routes/newsRoutes.js';
+import placementRoutes from './routes/placementRoutes.js';
 import feedbackRoutes from './routes/feedbackRoutes.js';
+
+
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import eventRoutes from './routes/eventRoutes.js';
 import courseRoutes from './routes/courseRoutes.js';
@@ -60,6 +63,7 @@ app.use('/api/mentorship', mentorshipRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/placements', placementRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/features', featureRoutes);

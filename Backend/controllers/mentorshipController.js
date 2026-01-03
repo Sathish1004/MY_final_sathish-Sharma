@@ -17,11 +17,11 @@ export const bookSession = async (req, res) => {
         }
 
         const query = `
-            INSERT INTO mentor_bookings (user_name, email, mentor_name, slot_time, topic, booking_date, status)
-            VALUES (?, ?, ?, ?, ?, ?, 'Pending')
+            INSERT INTO mentorship_sessions (student_name, student_email, mentor_name, slot_time, topic, status)
+            VALUES (?, ?, ?, ?, ?, 'Pending')
         `;
 
-        await db.query(query, [user_name, email, mentor_name, slot_time, topic || '', booking_date]);
+        await db.query(query, [student_name, student_email, mentor_name, slot_time, topic || '']);
 
         res.status(201).json({ message: "Session booked successfully" });
     } catch (error) {
@@ -32,11 +32,26 @@ export const bookSession = async (req, res) => {
 
 export const getAllSessions = async (req, res) => {
     try {
-        const query = `SELECT * FROM mentor_bookings ORDER BY created_at DESC`;
+        const query = `SELECT * FROM mentorship_sessions ORDER BY created_at DESC`;
         const [rows] = await db.query(query);
         res.status(200).json(rows);
     } catch (error) {
         console.error("Error fetching sessions:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+export const getStudentBookings = async (req, res) => {
+    try {
+        const { email } = req.query;
+        if (!email) {
+            return res.status(400).json({ message: "Email is required" });
+        }
+        const query = `SELECT * FROM mentorship_sessions WHERE student_email = ?`;
+        const [rows] = await db.query(query, [email]);
+        res.status(200).json(rows);
+    } catch (error) {
+        console.error("Error fetching student bookings:", error);
         res.status(500).json({ message: "Server error" });
     }
 };
